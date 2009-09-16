@@ -218,7 +218,6 @@ PVMFCommandId AndroidAudioOutput::DiscardData(PVMFTimestamp aTimestamp, const Os
     // and then call RunIfNotReady
     iOSSRequestQueueLock.Lock();
     for (int32 i = (iOSSRequestQueue.size() - 1); i >= 0; i--) {
-        if (iOSSRequestQueue[i].iTimestamp < aTimestamp) {
             audcmdid = iOSSRequestQueue[i].iCmdId;
             context = iOSSRequestQueue[i].iContext;
             timestamp = iOSSRequestQueue[i].iTimestamp;
@@ -231,7 +230,6 @@ PVMFCommandId AndroidAudioOutput::DiscardData(PVMFTimestamp aTimestamp, const Os
             iWriteResponseQueueLock.Lock();
             iWriteResponseQueue.push_back(resp);
             iWriteResponseQueueLock.Unlock();
-        }
     }
     LOGV("DiscardData data queued = %u, setting flush pending", iDataQueued);
     iFlushPending=true;
