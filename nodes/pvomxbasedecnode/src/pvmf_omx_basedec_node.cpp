@@ -2510,8 +2510,6 @@ OSCL_EXPORT_REF bool PVMFOMXBaseDecNode::SendInputBufferToOMXComponent()
 
         if (iSetMarkerBitForEveryFrag == true)
         {
-
-
             if (iIsNewDataFragment)
             {
                 if ((iDataIn->getNumFragments() > 1))
@@ -2551,7 +2549,9 @@ OSCL_EXPORT_REF bool PVMFOMXBaseDecNode::SendInputBufferToOMXComponent()
                     {
                         // NAL mode, (uses OMX_BUFFERFLAG_ENDOFFRAME flag to mark end of NAL instead of end of frame)
                         // once NAL is complete, make sure you send it and obtain new buffer
-                        input_buf->pBufHdr->nFlags |= OMX_BUFFERFLAG_ENDOFFRAME;
+                        if ((iCurrFragNum == iDataIn->getNumFragments()) ||
+                                (((PVMFOMXDecPort*)iInPort)->iFormat != PVMF_MIME_3640))
+                            input_buf->pBufHdr->nFlags |= OMX_BUFFERFLAG_ENDOFFRAME;
                         iObtainNewInputBuffer = true;
                     }
                     else if (iCurrentMsgMarkerBit & PVMF_MEDIA_DATA_MARKER_INFO_M_BIT)
