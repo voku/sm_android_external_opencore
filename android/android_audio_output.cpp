@@ -236,6 +236,10 @@ PVMFCommandId AndroidAudioOutput::DiscardData(PVMFTimestamp aTimestamp, const Os
 
     iOSSRequestQueueLock.Unlock();
 
+    // wakeup the audio thread: There is a chance of audio thread waiting in pause 
+    // state and possibly with a partial buffer
+    iAudioThreadSem->Signal();
+
     if (sched)
         RunIfNotReady();
 
@@ -445,6 +449,20 @@ int AndroidAudioOutput::audout_thread_func()
             }
             state = PAUSED;
             if(!iExitAudioThread && !iReturnBuffers) {
+                if (iFlushPending) {
+                    LOGV("flush");
+                    mAudioSink->flush();
+                    iFlushPending = false;
+                    bytesAvailInBuffer = 0;
+                    iClockTimeOfWriting_ns = 0;
+                    // discard partial buffer and send response to MIO
+                    if (data && len) {
+                        LOGV("discard partial buffer and send response to MIO");
+                        sendResponse(cmdid, context, timestamp);
+                        data = 0;
+                        len = 0;
+                    }
+                }
                 LOGV("wait");
                 iAudioThreadSem->Wait();
                 LOGV("awake");
