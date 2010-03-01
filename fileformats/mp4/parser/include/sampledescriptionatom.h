@@ -148,7 +148,7 @@ class SampleDescriptionAtom : public FullAtom
 
         bool Is3GPPAMR()
         {
-            if (_o3GPPAMR)
+            if (_o3GPPAMR | _o3GPPWBAMR)
             {
                 return true;
             }
