@@ -442,10 +442,6 @@ status_t PlayerDriver::enqueueCommand(PlayerCommand* command)
 
     // If we are in synchronous mode, wait for completion.
     if (syncsemcopy) {
-        if (code == PlayerCommand::PLAYER_CANCEL_ALL_COMMANDS)
-        {
-          RunIfNotReady();
-        }
         syncsemcopy->Wait();
         if (code == PlayerCommand::PLAYER_QUIT) {
             syncsemcopy->Close();
