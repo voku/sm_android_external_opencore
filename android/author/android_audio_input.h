@@ -53,10 +53,11 @@
 #ifndef ANDROID_AUDIO_INPUT_THREADSAFE_CALLBACK_AO_H_INCLUDED
 #include "android_audio_input_threadsafe_callbacks.h"
 #endif
+#ifndef DREAMSAPPHIRE
 #ifndef PVMF_MEDIA_CLOCK_H_INCLUDED
 #include "pvmf_media_clock.h"
 #endif
-
+#endif
 #include <utils/RefBase.h>
 
 #ifdef HIDE_MIO_SYMBOLS
@@ -209,8 +210,12 @@ class AndroidAudioInput : public OsclTimerObject,
     public PvmiMIOControl,
     public PvmiMediaTransfer,
     public PvmiCapabilityAndConfig,
+#ifndef DREAMSAPPHIRE
     public RefBase,
     public PVMFMediaClockStateObserver
+#else
+    public RefBase
+#endif
 {
 public:
     AndroidAudioInput(uint32 audioSource);
@@ -300,11 +305,11 @@ public:
 
     /* Sets the audio input source */
     bool setAudioSource(uint32 iSource);
-
+#ifndef DREAMSAPPHIRE
     /* From PVMFMediaClockStateObserver and its base*/
     void ClockStateUpdated();
     void NotificationsInterfaceDestroyed();
-
+#endif
 private:
     AndroidAudioInput();
     void Run();
@@ -350,9 +355,9 @@ private:
     // passed in is "timeInFrames".
     void RampVolume(int32 timeInFrames, int32 kAutoRampDurationFrames,
                     void *_data, size_t numBytes) const;
-
+#ifndef DREAMSAPPHIRE
     void RemoveDestroyClockStateObs();
-
+#endif
     // Command queue
     uint32 iCmdIdCounter;
     Oscl_Vector<AndroidAudioInputCmd, OsclMemAllocator> iCmdQueue;
@@ -457,7 +462,7 @@ private:
     Condition *iAudioThreadStartCV;
     volatile status_t iAudioThreadStartResult;
     volatile bool iAudioThreadStarted;
-
+#ifndef DREAMSAPPHIRE
     PVMFMediaClock *iAuthorClock;
     PVMFMediaClockNotificationsInterface *iClockNotificationsInf;
 
@@ -470,12 +475,7 @@ private:
     // This stores the Start cmd when Audio MIO is waiting for
     // first audio frame to be received from the device.
     AndroidAudioInputCmd iStartCmd;
-    // Variable to track AudioSource type.
-    int iAudioFormatType;
-    bool iBufferForceWrite;
-
-    // Audio input thread
-    OsclThread AudioInput_Thread;
+#endif
 };
 
 }; // namespace android

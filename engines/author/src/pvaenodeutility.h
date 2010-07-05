@@ -42,6 +42,7 @@
 #define LOG_ERR(m) PVLOGGER_LOGMSG(PVLOGMSG_INST_REL,iLogger,PVLOGMSG_ERR,m)
 
 /** Structure to contain a node and all ports and extensions associated to it */
+#ifndef DREAMSAPPHIRE
 class PVAENodeContainer
 {
     public:
@@ -51,7 +52,10 @@ class PVAENodeContainer
             iSessionId = 0;
             iNodeCapConfigIF = NULL;
         };
-
+#else
+struct PVAENodeContainer
+{
+#endif
         PVMFNodeInterface* iNode;
         PVMFSessionId iSessionId;
         PVUuid iUuid;

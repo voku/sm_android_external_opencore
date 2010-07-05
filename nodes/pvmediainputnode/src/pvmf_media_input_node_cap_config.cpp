@@ -361,7 +361,6 @@ void PvmfMediaInputNode::setParametersSync(PvmiMIOSession aSession, PvmiKvp* aPa
         // Retrieve the first component from the key string
         char* compstr = NULL;
         pv_mime_string_extract_type(0, aParameters[paramind].key, compstr);
-
         if ((compcount == 3) &&
                 (pv_mime_strcmp(compstr, _STRLIT_CHAR("x-pvmf/datasource")) == 0))
         {
@@ -376,6 +375,7 @@ void PvmfMediaInputNode::setParametersSync(PvmiMIOSession aSession, PvmiKvp* aPa
                 return;
             }
         }
+#ifndef DREAMSAPPHIRE
         else if ((compcount == 2) &&
                  (pv_mime_strcmp(compstr, PVMF_AUTHORING_CLOCK_KEY) == 0))
         {
@@ -385,6 +385,7 @@ void PvmfMediaInputNode::setParametersSync(PvmiMIOSession aSession, PvmiKvp* aPa
                 iMediaIOConfig->setParametersSync(NULL, aParameters, aNumElements, aRetKVP);
             }
         }
+#endif
         else
         {
             //pass it on to port to be sent upstream
