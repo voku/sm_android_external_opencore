@@ -59,7 +59,7 @@ AndroidAudioInput::AndroidAudioInput(uint32 audioSource)
     iState(STATE_IDLE),
     iMaxAmplitude(0),
     iTrackMaxAmplitude(false),
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     iAudioThreadStarted(false),
     iAuthorClock(NULL),
     iClockNotificationsInf(NULL),
@@ -764,7 +764,7 @@ void AndroidAudioInput::Run()
         }
     }
 
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     if ((iState == STATE_STARTED) && (iStartCmd.iType == AI_CMD_START)) {
         // This means Audio MIO is waiting for
         // first audio frame to be received
@@ -790,7 +790,7 @@ void AndroidAudioInput::Run()
         // Run again if there are more things to process
         RunIfNotReady();
     }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     if((iState == STATE_STARTED) && (iFirstFrameReceived))
 #else
     if(iState == STATE_STARTED)
@@ -834,7 +834,7 @@ void AndroidAudioInput::AddDataEventToQueue(uint32 aMicroSecondsToEvent)
 void AndroidAudioInput::DoRequestCompleted(const AndroidAudioInputCmd& aCmd, PVMFStatus aStatus, OsclAny* aEventData)
 {
     LOGV("DoRequestCompleted(%d, %d) this %p", aCmd.iId, aStatus, this);
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     if ((aStatus == PVMFPending) && (aCmd.iType == AI_CMD_START)) {
         LOGV("Start is pending, Return here, wait for success or failure");
         // Copy the command
@@ -883,7 +883,7 @@ PVMFStatus AndroidAudioInput::DoInit()
 PVMFStatus AndroidAudioInput::DoStart()
 {
     LOGV("DoStart");
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     // Set the clock state observer
     if (iAuthorClock) {
         iAuthorClock->ConstructMediaClockNotificationsInterface(iClockNotificationsInf, *this);
@@ -923,7 +923,7 @@ PVMFStatus AndroidAudioInput::DoStart()
     iState = STATE_STARTED;
 
     AddDataEventToQueue(0);
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     // Hold back onto Start until the first audio frame is received by
     // the audio thread.
     // We want to hold back the start until first audio frame since
@@ -959,7 +959,7 @@ PVMFStatus AndroidAudioInput::DoPause()
 PVMFStatus AndroidAudioInput::DoReset()
 {
     LOGD("DoReset: E");
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     // Remove and destroy the clock state observer
     RemoveDestroyClockStateObs();
     iFirstFrameReceived = false;
@@ -1016,7 +1016,7 @@ PVMFStatus AndroidAudioInput::DoFlush()
 PVMFStatus AndroidAudioInput::DoStop()
 {
     LOGD("DoStop: E");
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     // Remove and destroy the clock state observer
     RemoveDestroyClockStateObs();
     iFirstFrameReceived = false;
@@ -1206,7 +1206,7 @@ int AndroidAudioInput::audin_thread_func() {
             if (numOfBytes <= 0)
                 break;
             }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
             if (iFirstFrameReceived == false) {
                 iFirstFrameReceived = true;
 
@@ -1397,7 +1397,7 @@ PVMFStatus AndroidAudioInput::VerifyAndSetParameter(PvmiKvp* aKvp, bool aSetPara
             return PVMFFailure;
         }
     }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     else if (pv_mime_strcmp(aKvp->key, PVMF_AUTHORING_CLOCK_KEY) == 0)
     {
         LOGV("AndroidAudioInput::VerifyAndSetParameter() PVMF_AUTHORING_CLOCK_KEY value %p", aKvp->value.key_specific_value);
@@ -1424,7 +1424,7 @@ int AndroidAudioInput::maxAmplitude()
     iMaxAmplitude = 0;
     return result;
 }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
 void AndroidAudioInput::NotificationsInterfaceDestroyed()
 {
     iClockNotificationsInf = NULL;

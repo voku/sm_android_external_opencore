@@ -50,7 +50,7 @@ PVRefBufferAlloc::~PVRefBufferAlloc()
 AndroidCameraInput::AndroidCameraInput()
     : OsclTimerObject(OsclActiveObject::EPriorityNominal, "AndroidCameraInput"),
     iWriteState(EWriteOK),
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     iAuthorClock(NULL),
     iClockNotificationsInf(NULL),
     iAudioFirstFrameTs(0),
@@ -63,7 +63,7 @@ AndroidCameraInput::AndroidCameraInput()
     iPeer = NULL;
     iThreadLoggedOn = false;
     iDataEventCounter = 0;
-#ifdef DREAMSAPPHIRE
+#ifdef NO_PV_AUTHORING_CLOCK
     iStartTickCount = 0;
 #endif
     iTimeStamp = 0;
@@ -427,7 +427,7 @@ void AndroidCameraInput::writeComplete(PVMFStatus aStatus,
     sp<IMemoryHeap> heap = data.iFrameBuffer->getMemory(&offset, &size);
     LOGD("writeComplete: ID = %d, base = %p, offset = %ld, size = %d", heap->getHeapID(), heap->base(), offset, size);
 #endif
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     // View finder freeze detection
     // Note for low frame rate, we don't bother to log view finder freezes
     int processingTimeInMs = (systemTime()/1000000L - iAudioFirstFrameTs) - data.iXferHeader.timestamp;
@@ -951,7 +951,7 @@ PVMFStatus AndroidCameraInput::DoInit()
 PVMFStatus AndroidCameraInput::DoStart()
 {
     LOGV("DoStart");
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     iAudioFirstFrameTs = 0;
     // Set the clock state observer
     if (iAuthorClock) {
@@ -979,7 +979,7 @@ PVMFStatus AndroidCameraInput::DoStart()
             status = PVMFSuccess;
         }
     }
-#ifdef DREAMSAPPHIRE
+#ifdef NO_PV_AUTHORING_CLOCK
     iStartTickCount = (uint32) (systemTime() / 1000000L);
 #endif
     AddDataEventToQueue(iMilliSecondsPerDataEvent);
@@ -997,7 +997,7 @@ PVMFStatus AndroidCameraInput::DoPause()
 PVMFStatus AndroidCameraInput::DoReset()
 {
     LOGD("DoReset: E");
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     // Remove and destroy the clock state observer
     RemoveDestroyClockObs();
 #endif
@@ -1034,7 +1034,7 @@ PVMFStatus AndroidCameraInput::DoFlush(const AndroidCameraInputCmd& aCmd)
 PVMFStatus AndroidCameraInput::DoStop(const AndroidCameraInputCmd& aCmd)
 {
     LOGD("DoStop: E");
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     // Remove and destroy the clock state observer
     RemoveDestroyClockObs();
 #endif
@@ -1116,7 +1116,7 @@ PVMFStatus AndroidCameraInput::VerifyAndSetParameter(PvmiKvp* aKvp,
             return PVMFFailure;
         }
     }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     else if (pv_mime_strcmp(aKvp->key, PVMF_AUTHORING_CLOCK_KEY) == 0)
     {
         LOGV("AndroidCameraInput::VerifyAndSetParameter() PVMF_AUTHORING_CLOCK_KEY value %p", aKvp->value.key_specific_value);
@@ -1175,7 +1175,7 @@ PVMFStatus AndroidCameraInput::postWriteAsync(nsecs_t timestamp, const sp<IMemor
         LOGE("frame is a NULL pointer");
         return PVMFFailure;
     }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     if((!iPeer) || (!isRecorderStarting()) || (iWriteState == EWriteBusy) || (NULL == iAuthorClock) || (iAuthorClock->GetState() != PVMFMediaClock::RUNNING)) {
         if( NULL == iAuthorClock )
         {
@@ -1192,7 +1192,7 @@ PVMFStatus AndroidCameraInput::postWriteAsync(nsecs_t timestamp, const sp<IMemor
         return PVMFSuccess;
 #endif
     }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     // Now compare the video timestamp with the AudioFirstTimestamp
     // if video timestamp is earlier to audio drop it
     // or else send it downstream with correct timestamp
@@ -1213,14 +1213,14 @@ PVMFStatus AndroidCameraInput::postWriteAsync(nsecs_t timestamp, const sp<IMemor
          ts -= iAudioFirstFrameTs;
     }
 #endif
-#ifdef DREAMSAPPHIRE
+#ifdef NO_PV_AUTHORING_CLOCK
     // calculate timestamp as offset from start time
     uint32 t = (uint32)(timestamp / 1000000L) - iStartTickCount;
 #endif
 
     // Make sure that no two samples have the same timestamp
     if (iDataEventCounter != 0) {
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
         if (iTimeStamp != ts) {
             iTimeStamp = ts;
 #else
@@ -1290,7 +1290,7 @@ void AndroidCameraInputListener::postDataTimestamp(nsecs_t timestamp, int32_t ms
         mCameraInput->postWriteAsync(timestamp, dataPtr);
     }
 }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
 void AndroidCameraInput::NotificationsInterfaceDestroyed()
 {
     iClockNotificationsInf = NULL;

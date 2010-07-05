@@ -53,7 +53,7 @@
 #ifndef ANDROID_AUDIO_INPUT_THREADSAFE_CALLBACK_AO_H_INCLUDED
 #include "android_audio_input_threadsafe_callbacks.h"
 #endif
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
 #ifndef PVMF_MEDIA_CLOCK_H_INCLUDED
 #include "pvmf_media_clock.h"
 #endif
@@ -210,7 +210,7 @@ class AndroidAudioInput : public OsclTimerObject,
     public PvmiMIOControl,
     public PvmiMediaTransfer,
     public PvmiCapabilityAndConfig,
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     public RefBase,
     public PVMFMediaClockStateObserver
 #else
@@ -305,7 +305,7 @@ public:
 
     /* Sets the audio input source */
     bool setAudioSource(uint32 iSource);
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     /* From PVMFMediaClockStateObserver and its base*/
     void ClockStateUpdated();
     void NotificationsInterfaceDestroyed();
@@ -355,7 +355,7 @@ private:
     // passed in is "timeInFrames".
     void RampVolume(int32 timeInFrames, int32 kAutoRampDurationFrames,
                     void *_data, size_t numBytes) const;
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     void RemoveDestroyClockStateObs();
 #endif
     // Command queue
@@ -462,7 +462,7 @@ private:
     Condition *iAudioThreadStartCV;
     volatile status_t iAudioThreadStartResult;
     volatile bool iAudioThreadStarted;
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     PVMFMediaClock *iAuthorClock;
     PVMFMediaClockNotificationsInterface *iClockNotificationsInf;
 

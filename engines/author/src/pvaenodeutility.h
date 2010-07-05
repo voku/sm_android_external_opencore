@@ -42,7 +42,7 @@
 #define LOG_ERR(m) PVLOGGER_LOGMSG(PVLOGMSG_INST_REL,iLogger,PVLOGMSG_ERR,m)
 
 /** Structure to contain a node and all ports and extensions associated to it */
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
 class PVAENodeContainer
 {
     public:

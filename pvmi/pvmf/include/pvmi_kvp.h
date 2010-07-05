@@ -446,9 +446,9 @@ class PvmfAssetInfo3GPPLocationStruct
 #define PVMF_FORMAT_SPECIFIC_INFO_PLUS_FIRST_SAMPLE_KEY "x-pvmf/media/format_specific_info_plus_first_sample;valtype=uint8*"
 
 #define PVMF_CLIENT_PLAYBACK_CLOCK_KEY "x-pvmf/player-clock-pointer;valtype=key_specific_value"
-#ifndef DREAMSAPPHIRE
+
 #define PVMF_AUTHORING_CLOCK_KEY "x-pvmf/authoring-clock-pointer;valtype=key_specific_value"
-#endif
+
 // Keys for format bitrate info for any type of media
 #define PVMF_BITRATE_VALUE_KEY "x-pvmf/media/bit-rate;valtype=uint32"
 

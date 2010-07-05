@@ -9,6 +9,11 @@ ifeq ($(strip $(USE_SHOLES_PROPERTY)),true)
 LOCAL_CFLAGS += -DSHOLES_PROPERTY_OVERRIDES
 endif
 
+# Workaround for old radio
+ifdef BOARD_NO_PV_AUTHORING_CLOCK
+LOCAL_CFLAGS += -DNO_PV_AUTHORING_CLOCK
+endif
+
 LOCAL_SRC_FILES := \
     authordriver.cpp \
     PVMediaRecorder.cpp \

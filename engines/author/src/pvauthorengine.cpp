@@ -118,7 +118,7 @@ void PVAuthorEngine::Construct(PVCommandStatusObserver* aCmdStatusObserver,
     iPendingEvents.reserve(PVAE_NUM_PENDING_EVENTS);
 
     iNodeUtil.SetObserver(*this);
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     iAuthorClock.SetClockTimebase(iAuthorClockTimebase);
     uint32 starttime = 0;
     bool overflow = 0;
@@ -630,7 +630,7 @@ void PVAuthorEngine::NodeUtilCommandCompleted(const PVMFCmdResp& aResponse)
             else
             {
                 SetPVAEState(PVAE_STATE_INITIALIZED); // Init done. Change state
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
                 SendAuthoringClockToDataSources();
 #endif
             }
@@ -670,7 +670,7 @@ void PVAuthorEngine::NodeUtilCommandCompleted(const PVMFCmdResp& aResponse)
             else
             {
                 SetPVAEState(PVAE_STATE_RECORDING); // Start done. Change state
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
                 iAuthorClock.Start();
 #endif
             }
@@ -1397,7 +1397,7 @@ PVMFStatus PVAuthorEngine::DoReset(PVEngineCommand& aCmd)
             ResetNodeContainers();
             return PVMFSuccess;
         }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
         //Notify data sources to stop using author clock
         iAuthorClock.Stop();
         SendAuthoringClockToDataSources(true);
@@ -1437,7 +1437,7 @@ PVMFStatus PVAuthorEngine::DoPause(PVEngineCommand& aCmd)
     {
         return PVMFErrInvalidState;
     }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
     iAuthorClock.Pause();
 #endif
     iNodeUtil.Pause(iDataSourceNodes);
@@ -2912,7 +2912,7 @@ PVAuthorEngineInterface::GetSDKInfo
     aSdkInfo.iLabel = PVAUTHOR_ENGINE_SDKINFO_LABEL;
     aSdkInfo.iDate  = PVAUTHOR_ENGINE_SDKINFO_DATE;
 }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
 PVMFStatus PVAuthorEngine::SendAuthoringClockToDataSources(bool aReset)
 {
     // Create the kvp for the Authoring clock

@@ -375,7 +375,7 @@ void PvmfMediaInputNode::setParametersSync(PvmiMIOSession aSession, PvmiKvp* aPa
                 return;
             }
         }
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
         else if ((compcount == 2) &&
                  (pv_mime_strcmp(compstr, PVMF_AUTHORING_CLOCK_KEY) == 0))
         {

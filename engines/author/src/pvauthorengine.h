@@ -52,7 +52,7 @@
 #ifndef PVMI_CONFIG_AND_CAPABILITY_H_INCLUDED
 #include "pvmi_config_and_capability.h"
 #endif
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
 #ifndef PVMF_MEDIA_CLOCK_H_INCLUDED
 #include "pvmf_media_clock.h"
 #endif
@@ -385,7 +385,7 @@ class PVAuthorEngine : public PVAuthorEngineInterface,
         PvmiConfigAndCapabilityCmdObserver *iCfgCapCmdObserver;
         int iAsyncNumElements;
         bool iDoResetNodeContainers;
-#ifndef DREAMSAPPHIRE
+#ifndef NO_PV_AUTHORING_CLOCK
         //authoring clock related
         PVMFTimebase_Tickcount iAuthorClockTimebase;
         PVMFMediaClock iAuthorClock;
