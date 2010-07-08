@@ -54,7 +54,6 @@ AndroidCameraInput::AndroidCameraInput()
     iAuthorClock(NULL),
     iClockNotificationsInf(NULL),
     iAudioFirstFrameTs(0),
-    iAudioLossDuration(0),
 #endif
     pPmemInfo(NULL)
 {
