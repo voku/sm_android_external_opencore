@@ -2085,8 +2085,8 @@ bool PVMFOMXEncNode::NegotiateVideoComponentParameters()
     else if (iInFormat == PVMF_MIME_YUV420)
     {
         //TODO: get color format from MIO. JJ 03/09/09
-        DesiredPortColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
-        //DesiredPortColorFormat = OMX_COLOR_FormatYUV420Planar;
+        //DesiredPortColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
+        DesiredPortColorFormat = OMX_COLOR_FormatYUV420Planar;
     }
     else if (iInFormat == PVMF_MIME_YUV422_INTERLEAVED_UYVY)
     {
@@ -2163,8 +2163,8 @@ bool PVMFOMXEncNode::NegotiateVideoComponentParameters()
     {
         iOMXComponentInputBufferSize = (iVideoInputFormat.iFrameWidth * iVideoInputFormat.iFrameHeight * 3) >> 1;
         //TODO: get color format from MIO. JJ 03/09/09
-        iParamPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
-        //iParamPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420Planar;
+        //iParamPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
+        iParamPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420Planar;
     }
     else if (iInFormat == PVMF_MIME_YUV422_INTERLEAVED_UYVY)
     {
