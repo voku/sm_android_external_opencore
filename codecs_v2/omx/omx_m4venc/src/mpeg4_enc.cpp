@@ -162,14 +162,14 @@ OMX_ERRORTYPE Mpeg4Encoder_OMX::Mp4EncInit(OMX_S32 iEncMode,
     }
 
     // allocate iYUVIn
-    if (((iSrcWidth & 0xF) || (iSrcHeight & 0xF)) || OMX_COLOR_FormatYUV420Planar != iVideoFormat) /* Not multiple of 16 */
-    {
+    //if (((iSrcWidth & 0xF) || (iSrcHeight & 0xF)) || OMX_COLOR_FormatYUV420Planar != iVideoFormat) /* Not multiple of 16 */
+    //{
         iYUVIn = (uint8*) oscl_malloc(((((iSrcWidth + 15) >> 4) * ((iSrcHeight + 15) >> 4)) * 3) << 7);
         if (NULL == iYUVIn)
         {
             return OMX_ErrorInsufficientResources;
         }
-    }
+    //}
 
     /* Initialize the color conversion */
     if (OMX_COLOR_Format24bitRGB888 == iVideoFormat)
