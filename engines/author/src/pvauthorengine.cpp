@@ -1326,10 +1326,17 @@ PVMFStatus PVAuthorEngine::DoInit(PVEngineCommand& aCmd)
         return PVMFFailure;
     }
 
+#ifdef USE_GETBUFFERINFO
+    // Prepare the source node first, to make sure the camera preview started and
+    // HAL allocates PMEM buffers
+    iNodeUtil.Prepare(iDataSourceNodes);
+#endif
     iNodeUtil.Prepare(iComposerNodes);
     if (iEncoderNodes.size() > 0)
         iNodeUtil.Prepare(iEncoderNodes);
+#ifndef USE_GETBUFFERINFO
     iNodeUtil.Prepare(iDataSourceNodes);
+#endif
     PVUuid iUuid1 = PVMI_CAPABILITY_AND_CONFIG_PVUUID;
 
     for (uint ii = 0; ii < iEncoderNodes.size(); ii++)

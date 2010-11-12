@@ -14,6 +14,10 @@ ifdef BOARD_NO_PV_AUTHORING_CLOCK
 LOCAL_CFLAGS += -DNO_PV_AUTHORING_CLOCK
 endif
 
+ifeq ($(BOARD_CAMERA_USE_GETBUFFERINFO),true)
+LOCAL_CFLAGS += -DUSE_GETBUFFERINFO
+endif
+
 LOCAL_SRC_FILES := \
     authordriver.cpp \
     PVMediaRecorder.cpp \
@@ -42,7 +46,7 @@ LOCAL_SHARED_LIBRARIES := libmedia libbinder
 
 LOCAL_MODULE := libandroidpvauthor
 
-LOCAL_LDLIBS += 
+LOCAL_LDLIBS +=
 
 include $(BUILD_STATIC_LIBRARY)
 

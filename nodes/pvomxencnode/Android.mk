@@ -14,9 +14,9 @@ LOCAL_CFLAGS :=  $(PV_CFLAGS)
 
 
 
-LOCAL_STATIC_LIBRARIES := 
+LOCAL_STATIC_LIBRARIES :=
 
-LOCAL_SHARED_LIBRARIES := 
+LOCAL_SHARED_LIBRARIES :=
 
 LOCAL_C_INCLUDES := \
 	$(PV_TOP)/nodes/pvomxencnode/src \
@@ -30,5 +30,9 @@ LOCAL_COPY_HEADERS := \
 	include/pvmf_omx_enc_defs.h \
  	include/pvmf_omx_enc_factory.h \
  	include/pvmf_omx_enc_port.h
+
+ifeq ($(BOARD_CAMERA_USE_GETBUFFERINFO),true)
+  LOCAL_CFLAGS += -DUSE_GETBUFFERINFO
+endif
 
 include $(BUILD_STATIC_LIBRARY)
