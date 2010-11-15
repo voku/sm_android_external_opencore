@@ -593,6 +593,8 @@ void AuthorDriver::handleSetVideoEncoder(set_video_encoder_command *ac)
         if (mVideoFrameRate == 0) {
             mVideoFrameRate = DEFAULT_VIDEO_FRAME_RATE;
         }
+        clipVideoFrameRate();
+        ((AndroidCameraInput *)mVideoInputMIO)->SetFrameRate(mVideoFrameRate);
 
         if (mVideoWidth == 0) {
             mVideoWidth = DEFAULT_VIDEO_WIDTH;
@@ -600,17 +602,9 @@ void AuthorDriver::handleSetVideoEncoder(set_video_encoder_command *ac)
         if (mVideoHeight == 0) {
             mVideoHeight = DEFAULT_VIDEO_HEIGHT;
         }
-
         clipVideoFrameSize();
         ((AndroidCameraInput *)mVideoInputMIO)->SetFrameSize(mVideoWidth, mVideoHeight);
 
-        clipVideoFrameRate();
-
-        if( mVideoWidth == 1280 && mVideoHeight == 720 ){
-          LOGV("Setting fps to 24 for 720p recording on 8k");
-          mVideoFrameRate = 24;
-        }
-        ((AndroidCameraInput *)mVideoInputMIO)->SetFrameRate(mVideoFrameRate);
 
     }
 
