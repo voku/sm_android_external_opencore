@@ -106,6 +106,7 @@ OSCL_EXPORT_REF const char *PVMFStatusToString(const PVMFStatus status)
             CONSIDER(PVMFInfoDurationAvailable);
             CONSIDER(PVMFInfoChangePlaybackPositionNotSupported);
             CONSIDER(PVMFInfoPoorlyInterleavedContent);
+            CONSIDER(PVMFInfoActualPlaybackPosition);
             CONSIDER(PVMFInfoVideoTrackFallingBehind);
         default:
             return "UNKNOWN PVMFStatus";

@@ -619,9 +619,27 @@ void AuthorDriver::handleSetVideoSize(set_video_size_command *ac)
         commandFailed(ac);
         return;
     }
-
+/*
     mVideoWidth = ac->width;
     mVideoHeight = ac->height;
+    FinishNonAsyncCommand(ac);
+*/
+    // FIXME:
+    // Platform-specific and temporal workaround to prevent video size from being set too large
+    if (ac->width > ANDROID_MAX_ENCODED_FRAME_WIDTH) {
+        LOGW("Intended width(%d) exceeds the max allowed width(%d). Max width is used instead.", ac->width, ANDROID_MAX_ENCODED_FRAME_WIDTH);
+        mVideoWidth = ANDROID_MAX_ENCODED_FRAME_WIDTH;
+    } else {
+        mVideoWidth = ac->width;
+    }
+    if (ac->height > ANDROID_MAX_ENCODED_FRAME_HEIGHT) {
+        LOGW("Intended height(%d) exceeds the max allowed height(%d). Max height is used instead.", ac->height, ANDROID_MAX_ENCODED_FRAME_HEIGHT);
+        mVideoHeight = ANDROID_MAX_ENCODED_FRAME_HEIGHT;
+    } else {
+        mVideoHeight = ac->height;
+    }
+
+    ((AndroidCameraInput *)mVideoInputMIO)->SetFrameSize(mVideoWidth, mVideoHeight);
     FinishNonAsyncCommand(ac);
 }
 
@@ -634,6 +652,8 @@ void AuthorDriver::handleSetVideoFrameRate(set_video_frame_rate_command *ac)
     }
 
     mVideoFrameRate = ac->rate;
+
+    ((AndroidCameraInput *)mVideoInputMIO)->SetFrameRate(ac->rate);
     FinishNonAsyncCommand(ac);
 }
 
@@ -1286,6 +1306,7 @@ void AuthorDriver::CommandCompleted(const PVCmdResponse& aResponse)
     }
 
     if (ac->which == AUTHOR_SET_VIDEO_ENCODER) {
+/*
         switch(mVideoEncoder) {
         case VIDEO_ENCODER_H263:
         case VIDEO_ENCODER_MPEG_4_SP:
@@ -1309,6 +1330,46 @@ void AuthorDriver::CommandCompleted(const PVCmdResponse& aResponse)
         default:
             break;
         }
+*/
+		PVMp4H263EncExtensionInterface * config;
+		switch(mVideoEncoder)
+		{
+		case VIDEO_ENCODER_H263:
+		case VIDEO_ENCODER_MPEG_4_SP:
+		case VIDEO_ENCODER_H264:
+			config = OSCL_STATIC_CAST(PVMp4H263EncExtensionInterface*,
+									mVideoEncoderConfig);
+			if (config)
+			{
+				int bitrate = 1;
+				PVMFVENRateControlType rc_type = PVMFVEN_RATE_CONTROL_CONSTANT_Q;
+
+				/* 
+				if video width is above 352, 
+				we assume that this is high quality mode (constant Q)
+				*/
+				if (mVideoWidth < 320)
+				{
+					/* low quality */
+					bitrate = 192000;
+					rc_type = PVMFVEN_RATE_CONTROL_CBR;
+				}
+
+				LOGI("bitrate=%d\n", bitrate);
+				LOGI("w=%d, h=%d\n", mVideoWidth, mVideoHeight);
+				LOGI("framerate=%d\n", mVideoFrameRate);
+				LOGI("rc_type=%d\n", rc_type);
+				config->SetNumLayers(1);
+				config->SetOutputBitRate(0, bitrate);
+				config->SetOutputFrameSize(0, mVideoWidth, mVideoHeight);
+                config->SetOutputFrameRate(0, mVideoFrameRate);
+                config->SetIFrameInterval(mVideoFrameRate);
+				config->SetRateControlType(0,rc_type);
+			}
+			break;
+		default:
+			break;
+		}
     }
 
     if (ac->which == AUTHOR_SET_AUDIO_ENCODER) {

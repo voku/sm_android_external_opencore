@@ -16,8 +16,8 @@
  * -------------------------------------------------------------------
  */
 /**
-    @file omx_avcenc_component.h
-    OpenMax encoder_component component.
+	@file omx_avcenc_component.h
+	OpenMax encoder_component component.
 
 */
 
@@ -32,13 +32,19 @@
 #include "avc_enc.h"
 #endif
 
-
-#define INPUT_BUFFER_SIZE_AVCENC 38016          //(176 * 144 * 1.5) for YUV 420 format.
-
+#if 0
+#define INPUT_BUFFER_SIZE_AVCENC 38016			//(176 * 144 * 1.5) for YUV 420 format.
+#define OUTPUT_BUFFER_SIZE_AVCENC 38135
+#else
+// RainAde
+#define INPUT_BUFFER_SIZE_AVCENC 202752			//(176 * 144 * 1.5) for YUV 420 format.
+// opencore ver. 2.03
+//#define OUTPUT_BUFFER_SIZE_AVCENC 20275
 #if (defined(TEST_FULL_AVC_FRAME_MODE) || defined(TEST_FULL_AVC_FRAME_MODE_SC))
 #define OUTPUT_BUFFER_SIZE_AVCENC 38581 // (20 + 4 * MAX_NAL_PER_FRAME + 20 + 6) is size of extra data
 #else
 #define OUTPUT_BUFFER_SIZE_AVCENC 38135
+#endif
 #endif
 
 #define NUMBER_INPUT_BUFFER_AVCENC  5
@@ -70,24 +76,29 @@ class OmxComponentAvcEncAO : public OmxComponentVideo
     private:
 
         OMX_BOOL CopyDataToOutputBuffer();
+// --> opencore ver. 2.03
         OMX_BOOL AppendExtraDataToBuffer(OMX_BUFFERHEADERTYPE* aOutputBuffer,
                                          OMX_EXTRADATATYPE aType,
                                          OMX_U8* aExtraData,
                                          OMX_U8 aDataLength);
         void ManageFrameBoundaries();
+// <-- opencore ver. 2.03
 
         AvcEncoder_OMX*   ipAvcEncoderObject;
 
-        OMX_BOOL          iBufferOverRun;
-        OMX_U8*           ipInternalOutBuffer;
-        OMX_U32           iInternalOutBufFilledLen;
-        OMX_TICKS         iOutputTimeStamp;
-        OMX_BOOL          iSyncFlag;
+        OMX_BOOL		  iBufferOverRun;
+        OMX_U8*			  ipInternalOutBuffer;
+        OMX_U32			  iInternalOutBufFilledLen;
+        OMX_TICKS		  iOutputTimeStamp;
+        OMX_BOOL		  iSyncFlag;
+
+// --> opencore ver. 2.03
         OMX_BOOL          iEndOfOutputFrame;
 
-        OMX_U32           iNALSizeArray[MAX_NAL_PER_FRAME];
-        OMX_U32           iNALSizeSum;
-        OMX_U32           iNALCount;
+        OMX_U32			  iNALSizeArray[MAX_NAL_PER_FRAME];
+        OMX_U32			  iNALSizeSum;
+        OMX_U32			  iNALCount;
+// <-- opencore ver. 2.03
 };
 
 #endif // OMX_AVCENC_COMPONENT_H_INCLUDED

@@ -34,6 +34,8 @@ OSCL_DLL_ENTRY_POINT_DEFAULT()
 // This function is called by OMX_GetHandle and it creates an instance of the avc component AO
 OSCL_EXPORT_REF OMX_ERRORTYPE AvcOmxComponentFactory(OMX_OUT OMX_HANDLETYPE* pHandle, OMX_IN  OMX_PTR pAppData, OMX_IN OMX_PTR pProxy , OMX_STRING aOmxLibName, OMX_PTR &aOmxLib, OMX_PTR aOsclUuid, OMX_U32 &aRefCount)
 {
+	LOGV("++++++++++++++ AvcOmxComponentFactory ++++++++++++++\n");
+
     OSCL_UNUSED_ARG(aOmxLibName);
     OSCL_UNUSED_ARG(aOmxLib);
     OSCL_UNUSED_ARG(aOsclUuid);
@@ -63,6 +65,8 @@ OSCL_EXPORT_REF OMX_ERRORTYPE AvcOmxComponentFactory(OMX_OUT OMX_HANDLETYPE* pHa
 // This function is called by OMX_FreeHandle when component AO needs to be destroyed
 OSCL_EXPORT_REF OMX_ERRORTYPE AvcOmxComponentDestructor(OMX_IN OMX_HANDLETYPE pHandle, OMX_PTR &aOmxLib, OMX_PTR aOsclUuid, OMX_U32 &aRefCount)
 {
+	LOGV("------------- AvcOmxComponentDestructor ---------------\n");
+
     OSCL_UNUSED_ARG(aOmxLib);
     OSCL_UNUSED_ARG(aOsclUuid);
     OSCL_UNUSED_ARG(aRefCount);
@@ -82,10 +86,16 @@ OSCL_EXPORT_REF OMX_ERRORTYPE AvcOmxComponentDestructor(OMX_IN OMX_HANDLETYPE pH
 #if DYNAMIC_LOAD_OMX_AVC_COMPONENT
 class OsclSharedLibraryInterface;
 class AvcOmxSharedLibraryInterface: public OsclSharedLibraryInterface,
-        public OmxSharedLibraryInterface
+            public OmxSharedLibraryInterface
 
 {
     public:
+        static AvcOmxSharedLibraryInterface *Instance()
+        {
+            static AvcOmxSharedLibraryInterface omxinterface;
+            return &omxinterface;
+        };
+
         OsclAny *QueryOmxComponentInterface(const OsclUuid& aOmxTypeId, const OsclUuid& aInterfaceId)
         {
             if (PV_OMX_AVCDEC_UUID == aOmxTypeId)
@@ -110,6 +120,7 @@ class AvcOmxSharedLibraryInterface: public OsclSharedLibraryInterface,
             return NULL;
         };
 
+    private:
         AvcOmxSharedLibraryInterface() {};
 };
 
@@ -118,13 +129,7 @@ extern "C"
 {
     OSCL_EXPORT_REF OsclAny* PVGetInterface()
     {
-        return (OsclAny*) OSCL_NEW(AvcOmxSharedLibraryInterface, ());
-    }
-
-    OSCL_EXPORT_REF void PVReleaseInterface(OsclSharedLibraryInterface* aInstance)
-    {
-        AvcOmxSharedLibraryInterface* module = (AvcOmxSharedLibraryInterface*)aInstance;
-        OSCL_DELETE(module);
+        return AvcOmxSharedLibraryInterface::Instance();
     }
 }
 
@@ -142,11 +147,11 @@ OMX_ERRORTYPE OpenmaxAvcAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProxy)
     ipComponentProxy = pProxy;
     iOmxComponent.pApplicationPrivate = pAppData; // init the App data
 
+    // yj: multi-slice
     iNumNALs = 0;
     iCurrNAL = 0;
     iNALOffset = 0;
     oscl_memset(iNALSizeArray, 0, MAX_NAL_PER_FRAME * sizeof(uint32));
-
 
 #if PROXY_INTERFACE
     iPVCapabilityFlags.iIsOMXComponentMultiThreaded = OMX_TRUE;
@@ -206,12 +211,12 @@ OMX_ERRORTYPE OpenmaxAvcAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProxy)
     iPVCapabilityFlags.iOMXComponentUsesFullAVCFrames = OMX_TRUE;
 #else
     iPVCapabilityFlags.iOMXComponentSupportsExternalInputBufferAlloc = OMX_TRUE;
-    iPVCapabilityFlags.iOMXComponentSupportsExternalOutputBufferAlloc = OMX_TRUE;
-    iPVCapabilityFlags.iOMXComponentSupportsMovableInputBuffers = OMX_TRUE;
-    iPVCapabilityFlags.iOMXComponentSupportsPartialFrames = OMX_TRUE;
+    iPVCapabilityFlags.iOMXComponentSupportsExternalOutputBufferAlloc = OMX_FALSE;
+    iPVCapabilityFlags.iOMXComponentSupportsMovableInputBuffers = OMX_FALSE;
+    iPVCapabilityFlags.iOMXComponentSupportsPartialFrames = OMX_FALSE;	
     iPVCapabilityFlags.iOMXComponentUsesNALStartCodes = OMX_FALSE;
-    iPVCapabilityFlags.iOMXComponentCanHandleIncompleteFrames = OMX_TRUE;
-    iPVCapabilityFlags.iOMXComponentUsesFullAVCFrames = OMX_FALSE;
+    iPVCapabilityFlags.iOMXComponentCanHandleIncompleteFrames = OMX_FALSE;
+    iPVCapabilityFlags.iOMXComponentUsesFullAVCFrames = OMX_TRUE;
 #endif
 
     if (ipAppPriv)
@@ -269,10 +274,9 @@ OMX_ERRORTYPE OpenmaxAvcAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProxy)
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.xFramerate = (15 << 16);
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.eDir = OMX_DirOutput;
     //Set to a default value, will change later during setparameter call
-    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.nBufferCountActual = NUMBER_OUTPUT_BUFFER_AVC
-            ;
+    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.nBufferCountActual = NUMBER_OUTPUT_BUFFER_AVC;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.nBufferCountMin = 1;
-    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.nBufferSize = OUTPUT_BUFFER_SIZE_AVC; //just use QCIF (as default)
+    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.nBufferSize = 176 * 144 * 3 / 2; //Don't use OUTPUT_BUFFER_SIZE_AVC, just use QCIF (as default)
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.bEnabled = OMX_TRUE;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.bPopulated = OMX_FALSE;
 
@@ -312,8 +316,8 @@ OMX_ERRORTYPE OpenmaxAvcAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProxy)
     pOutPort->VideoParam[0].eCompressionFormat = OMX_VIDEO_CodingUnused;
     pOutPort->VideoParam[0].eColorFormat = OMX_COLOR_FormatYUV420Planar;
 
-    oscl_strncpy((OMX_STRING)iComponentRole, (OMX_STRING)"video_decoder.avc", OMX_MAX_STRINGNAME_SIZE);
-
+// RainAde : removed for bug fix (thumbnail)
+//    iUseExtTimestamp = OMX_TRUE;
     iDecodeReturn = OMX_FALSE;
 
     if (ipAvcDec)
@@ -352,9 +356,9 @@ OMX_ERRORTYPE OpenmaxAvcAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProxy)
 
 
 /** This function is called by the omx core when the component
-    * is disposed by the IL client with a call to FreeHandle().
-    * \param Component, the component to be disposed
-    */
+	* is disposed by the IL client with a call to FreeHandle().
+	* \param Component, the component to be disposed
+	*/
 
 OMX_ERRORTYPE OpenmaxAvcAO::DestroyComponent()
 {
@@ -383,6 +387,284 @@ OMX_ERRORTYPE OpenmaxAvcAO::DestroyComponent()
     return OMX_ErrorNone;
 }
 
+OMX_ERRORTYPE OpenmaxAvcAO::BaseComponentAllocateBuffer(
+    OMX_IN OMX_HANDLETYPE hComponent,
+    OMX_INOUT OMX_BUFFERHEADERTYPE** pBuffer,
+    OMX_IN OMX_U32 nPortIndex,
+    OMX_IN OMX_PTR pAppPrivate,
+    OMX_IN OMX_U32 nSizeBytes)
+{
+    OMX_ERRORTYPE Status;
+
+	/*
+	 * This function is called only OMX_PORT_OUTPUTPORT_INDEX
+	 */
+/*
+    OmxComponentBase* pOpenmaxBaseType = (OmxComponentBase*)((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate;
+    if (NULL == pOpenmaxBaseType)
+    {
+        return OMX_ErrorBadParameter;
+    }
+*/
+    OpenmaxAvcAO* pOpenmaxAOType = (OpenmaxAvcAO*)((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate;
+    if (NULL == pOpenmaxAOType)
+    {
+        return OMX_ErrorBadParameter;
+    }
+
+	//if(nPortIndex == OMX_PORT_INPUTPORT_INDEX)
+    //	Status = pOpenmaxBaseType->AllocateBuffer(hComponent, pBuffer, nPortIndex, pAppPrivate, nSizeBytes);
+	//else if(nPortIndex == OMX_PORT_OUTPUTPORT_INDEX)
+	    Status = pOpenmaxAOType->AllocateBuffer(hComponent, pBuffer, nPortIndex, pAppPrivate, nSizeBytes);
+
+    return Status;
+}
+
+OMX_ERRORTYPE OpenmaxAvcAO::AllocateBuffer(
+    OMX_IN OMX_HANDLETYPE hComponent,
+    OMX_INOUT OMX_BUFFERHEADERTYPE** pBuffer,
+    OMX_IN OMX_U32 nPortIndex,
+    OMX_IN OMX_PTR pAppPrivate,
+    OMX_IN OMX_U32 nSizeBytes)
+{
+    OSCL_UNUSED_ARG(hComponent);
+    PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : AllocateBuffer IN"));
+
+    ComponentPortType* pBaseComponentPort;
+    OMX_U32 ii;
+
+    if (nPortIndex >= iNumPorts)
+    {
+        PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : AllocateBuffer error bad port index"));
+        return OMX_ErrorBadPortIndex;
+    }
+
+    pBaseComponentPort = ipPorts[nPortIndex];
+
+    if (pBaseComponentPort->TransientState != OMX_StateIdle)
+    {
+        PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : AllocateBuffer error incorrect state"));
+        return OMX_ErrorIncorrectStateTransition;
+    }
+
+    if (NULL == pBaseComponentPort->pBuffer)
+    {
+        pBaseComponentPort->pBuffer = (OMX_BUFFERHEADERTYPE**) oscl_calloc(pBaseComponentPort->PortParam.nBufferCountActual, sizeof(OMX_BUFFERHEADERTYPE*));
+		if (NULL == pBaseComponentPort->pBuffer)
+		{
+			PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : AllocateBuffer error insufficient resources"));
+			return OMX_ErrorInsufficientResources;
+		}
+
+        pBaseComponentPort->BufferState = (OMX_U32*) oscl_calloc(pBaseComponentPort->PortParam.nBufferCountActual, sizeof(OMX_U32));
+		if (NULL == pBaseComponentPort->BufferState)
+		{
+			PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : AllocateBuffer error insufficient resources"));
+			return OMX_ErrorInsufficientResources;
+		}
+    }
+
+    for (ii = 0; ii < pBaseComponentPort->PortParam.nBufferCountActual; ii++)
+    {
+        if (!(pBaseComponentPort->BufferState[ii] & BUFFER_ALLOCATED) &&
+                !(pBaseComponentPort->BufferState[ii] & BUFFER_ASSIGNED))
+        {
+            pBaseComponentPort->pBuffer[ii] = (OMX_BUFFERHEADERTYPE*) oscl_malloc(sizeof(OMX_BUFFERHEADERTYPE));
+            if (NULL == pBaseComponentPort->pBuffer[ii])
+            {
+                PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : AllocateBuffer error insufficient resources"));
+                return OMX_ErrorInsufficientResources;
+            }
+            SetHeader(pBaseComponentPort->pBuffer[ii], sizeof(OMX_BUFFERHEADERTYPE));
+
+            /* allocate the buffer */
+			//pBaseComponentPort->pBuffer[ii]->pBuffer -> using MFC' output buf
+			pBaseComponentPort->pBuffer[ii]->nAllocLen = nSizeBytes;
+            pBaseComponentPort->pBuffer[ii]->nFlags = 0;
+            pBaseComponentPort->pBuffer[ii]->pPlatformPrivate = pBaseComponentPort;
+
+            pBaseComponentPort->pBuffer[ii]->pAppPrivate = pAppPrivate;
+            *pBuffer = pBaseComponentPort->pBuffer[ii];
+            pBaseComponentPort->BufferState[ii] |= BUFFER_ALLOCATED;
+            pBaseComponentPort->BufferState[ii] |= HEADER_ALLOCATED;
+
+            if (OMX_DirInput == pBaseComponentPort->PortParam.eDir)
+            {
+                pBaseComponentPort->pBuffer[ii]->nInputPortIndex = nPortIndex;
+                // here is assigned a non-valid port index
+                pBaseComponentPort->pBuffer[ii]->nOutputPortIndex = iNumPorts;
+            }
+            else
+            {
+                // here is assigned a non-valid port index
+                pBaseComponentPort->pBuffer[ii]->nInputPortIndex = iNumPorts;
+                pBaseComponentPort->pBuffer[ii]->nOutputPortIndex = nPortIndex;
+            }
+
+            pBaseComponentPort->NumAssignedBuffers++;
+
+            if (pBaseComponentPort->PortParam.nBufferCountActual == pBaseComponentPort->NumAssignedBuffers)
+            {
+                pBaseComponentPort->PortParam.bPopulated = OMX_TRUE;
+
+                if (OMX_TRUE == iStateTransitionFlag)
+                {
+                    //Reschedule the AO for a state change (Loaded->Idle) if its pending on buffer allocation
+                    RunIfNotReady();
+                    //Set the corresponding flags
+                    iStateTransitionFlag = OMX_FALSE;
+                }
+            }
+
+            PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : AllocateBuffer OUT"));
+            return OMX_ErrorNone;
+        }
+    }
+
+    PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : AllocateBuffer OUT"));
+    
+	return OMX_ErrorInsufficientResources;
+}
+
+OMX_ERRORTYPE OpenmaxAvcAO::BaseComponentFreeBuffer(
+    OMX_IN  OMX_HANDLETYPE hComponent,
+    OMX_IN  OMX_U32 nPortIndex,
+    OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer)
+{
+    OmxComponentBase* pOpenmaxBaseType = (OmxComponentBase*)((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate;
+    OpenmaxAvcAO* pOpenmaxAOType = (OpenmaxAvcAO*)((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate;
+    OMX_ERRORTYPE Status;
+
+    if (NULL == pOpenmaxBaseType || NULL == pOpenmaxAOType)
+    {
+        return OMX_ErrorBadParameter;
+    }
+
+	if(nPortIndex == OMX_PORT_INPUTPORT_INDEX)
+	{
+		Status = pOpenmaxBaseType->FreeBuffer(hComponent, nPortIndex, pBuffer);
+	}
+	else if(nPortIndex == OMX_PORT_OUTPUTPORT_INDEX)
+	{
+		Status = pOpenmaxAOType->FreeBuffer(hComponent, nPortIndex, pBuffer);
+	}
+
+    return Status;
+}
+
+OMX_ERRORTYPE OpenmaxAvcAO::FreeBuffer(
+    OMX_IN  OMX_HANDLETYPE hComponent,
+    OMX_IN  OMX_U32 nPortIndex,
+    OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer)
+{
+    PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : FreeBuffer IN"));
+
+    ComponentPortType* pBaseComponentPort;
+    OMX_ERRORTYPE Status;
+
+    OMX_U32 ii;
+    OMX_BOOL FoundBuffer;
+
+    if (nPortIndex >= iNumPorts)
+    {
+        PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : FreeBuffer error bad port index"));
+        return OMX_ErrorBadPortIndex;
+    }
+
+    pBaseComponentPort = ipPorts[nPortIndex];
+
+    if (pBaseComponentPort->TransientState != OMX_StateLoaded
+            && pBaseComponentPort->TransientState != OMX_StateInvalid)
+    {
+
+        (*(ipCallbacks->EventHandler))
+        (hComponent,
+         iCallbackData,
+         OMX_EventError, /* The command was completed */
+         OMX_ErrorPortUnpopulated, /* The commands was a OMX_CommandStateSet */
+         nPortIndex, /* The State has been changed in message->MessageParam2 */
+         NULL);
+    }
+
+    for (ii = 0; ii < pBaseComponentPort->PortParam.nBufferCountActual; ii++)
+    {
+        if ((pBaseComponentPort->BufferState[ii] & BUFFER_ALLOCATED) &&
+                (pBaseComponentPort->pBuffer[ii]->pBuffer == pBuffer->pBuffer))
+        {
+            pBaseComponentPort->NumAssignedBuffers--;
+            //oscl_free(pBuffer->pBuffer);	// MFC controls free of output buffer
+            pBuffer->pBuffer = NULL;
+
+            if (pBaseComponentPort->BufferState[ii] & HEADER_ALLOCATED)
+            {
+                oscl_free(pBuffer);
+                pBuffer = NULL;
+            }
+            pBaseComponentPort->BufferState[ii] = BUFFER_FREE;
+            break;
+        }
+        else if ((pBaseComponentPort->BufferState[ii] & BUFFER_ASSIGNED) &&
+                 (pBaseComponentPort->pBuffer[ii] == pBuffer))
+        {
+            pBaseComponentPort->NumAssignedBuffers--;
+
+            if (pBaseComponentPort->BufferState[ii] & HEADER_ALLOCATED)
+            {
+                oscl_free(pBuffer);
+                pBuffer = NULL;
+            }
+
+            pBaseComponentPort->BufferState[ii] = BUFFER_FREE;
+            break;
+        }
+	}
+	
+    FoundBuffer = OMX_FALSE;
+
+    for (ii = 0; ii < pBaseComponentPort->PortParam.nBufferCountActual; ii++)
+    {
+        if (pBaseComponentPort->BufferState[ii] != BUFFER_FREE)
+        {
+            FoundBuffer = OMX_TRUE;
+            break;
+        }
+    }
+    if (!FoundBuffer)
+    {
+        pBaseComponentPort->PortParam.bPopulated = OMX_FALSE;
+
+        if (OMX_TRUE == iStateTransitionFlag)
+        {
+            //Reschedule the AO for a state change (Idle->Loaded) if its pending on buffer de-allocation
+            RunIfNotReady();
+            iStateTransitionFlag = OMX_FALSE;
+
+            //Reset the decoding flags while freeing buffers
+            if (OMX_PORT_INPUTPORT_INDEX == nPortIndex)
+            {
+                iIsInputBufferEnded = OMX_TRUE;
+                iTempInputBufferLength = 0;
+                iTempConsumedLength = 0;
+                iNewInBufferRequired = OMX_TRUE;
+            }
+            else if (OMX_PORT_OUTPUTPORT_INDEX == nPortIndex)
+            {
+                iNewOutBufRequired = OMX_TRUE;
+            }
+        }
+
+        if (NULL != pBaseComponentPort->pBuffer)
+        {
+            oscl_free(pBaseComponentPort->pBuffer);
+            pBaseComponentPort->pBuffer = NULL;
+            oscl_free(pBaseComponentPort->BufferState);
+            pBaseComponentPort->BufferState = NULL;
+        }
+    }
+
+    PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : FreeBuffer OUT"));
+    return OMX_ErrorNone;
+}
 
 /* This function will be called in case of buffer management without marker bit present
  * The purpose is to copy the current input buffer into a big temporary buffer, so that
@@ -394,60 +676,24 @@ void OpenmaxAvcAO::ComponentBufferMgmtWithoutMarker()
     TempInputBufferMgmtWithoutMarker();
 }
 
+
 OMX_BOOL OpenmaxAvcAO::ParseFullAVCFramesIntoNALs(OMX_BUFFERHEADERTYPE* aInputBuffer)
 {
     PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : ParseFullAVCFramesIntoNALs IN"));
-
+	
     ipInputBuffer = aInputBuffer;
 
     if (iNumInputBuffer == 0)
     {
-        PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OmxComponentBase : ParseFullAVCFramesIntoNALs ERROR"));
+        PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : ParseFullAVCFramesIntoNALs ERROR"));
         return OMX_FALSE;
     }
 
-    if (iPVCapabilityFlags.iOMXComponentUsesNALStartCodes && !(ipInputBuffer->nFlags & OMX_BUFFERFLAG_EXTRADATA))
-    {
-        OMX_U32 offset = ipInputBuffer->nOffset;
-        OMX_U32 length = ipInputBuffer->nFilledLen;
-        OMX_U8* pBuffer = ipInputBuffer->pBuffer + offset;
-        OMX_U8* pTemp;
-        int32 nalSize;
+    // iOMXComponentUsesNALStartCodes is always OMX_FALSE
+    //if (iPVCapabilityFlags.iOMXComponentUsesNALStartCodes && !(ipInputBuffer->nFlags & OMX_BUFFERFLAG_EXTRADATA))
 
-        iNumNALs = 0;
-
-        while (length > 0)
-        {
-            if (AVCDEC_SUCCESS != ipAvcDec->GetNextFullNAL_OMX(&pTemp, &nalSize, pBuffer, &length))
-            {
-                break;
-            }
-
-            pBuffer += nalSize + (int32)(pTemp - pBuffer);
-
-            iNALSizeArray[iNumNALs] = nalSize;
-
-            iNumNALs++;
-        }
-
-        if (iNumNALs > 0)
-        {
-            iCurrNAL = 0;
-            iNALOffset = ipInputBuffer->nOffset + NAL_START_CODE_SIZE;
-            ipFrameDecodeBuffer = ipInputBuffer->pBuffer + iNALOffset;
-            iInputCurrLength = iNALSizeArray[iCurrNAL];
-            iNALOffset += (iInputCurrLength + NAL_START_CODE_SIZE); // offset for next NAL
-            //capture the timestamp to be send to the corresponding output buffer
-            iFrameTimestamp = ipInputBuffer->nTimeStamp;
-        }
-        else
-        {
-            PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OmxComponentBase : ParseFullAVCFramesIntoNALs ERROR"));
-            return OMX_FALSE;
-        }
-    }
     // may be a full frame, or may incomplete, therefore don't check for OMX_BUFFERFLAG_ENDOFFRAME
-    else if (ipInputBuffer->nFlags & OMX_BUFFERFLAG_EXTRADATA)
+    if (ipInputBuffer->nFlags & OMX_BUFFERFLAG_EXTRADATA)
     {
         // get extra data from end of buffer
         OMX_OTHER_EXTRADATATYPE *pExtra;
@@ -484,7 +730,7 @@ OMX_BOOL OpenmaxAvcAO::ParseFullAVCFramesIntoNALs(OMX_BUFFERHEADERTYPE* aInputBu
 
         if (pExtra->eType != OMX_ExtraDataNALSizeArray)
         {
-            PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OmxComponentBase : ParseFullAVCFramesIntoNALs ERROR"));
+            PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : ParseFullAVCFramesIntoNALs ERROR"));
             return OMX_FALSE;
         }
 
@@ -503,14 +749,14 @@ OMX_BOOL OpenmaxAvcAO::ParseFullAVCFramesIntoNALs(OMX_BUFFERHEADERTYPE* aInputBu
     }
     else
     {
-        PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OmxComponentBase : ParseFullAVCFramesIntoNALs ERROR"));
+        PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : ParseFullAVCFramesIntoNALs ERROR"));
         return OMX_FALSE;
     }
 
     PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : ParseFullAVCFramesIntoNALs OUT"));
+	
     return OMX_TRUE;
 }
-
 
 void OpenmaxAvcAO::ProcessData()
 {
@@ -532,21 +778,21 @@ void OpenmaxAvcAO::DecodeWithoutMarker()
 {
     PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithoutMarker IN"));
 
-    QueueType*              pInputQueue  = ipPorts[OMX_PORT_INPUTPORT_INDEX]->pBufferQueue;
-    QueueType*              pOutputQueue = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->pBufferQueue;
-    ComponentPortType*  pOutPort =     ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
-    OMX_COMPONENTTYPE *     pHandle =      &iOmxComponent;
+    QueueType*				pInputQueue  = ipPorts[OMX_PORT_INPUTPORT_INDEX]->pBufferQueue;
+    QueueType*				pOutputQueue = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->pBufferQueue;
+    ComponentPortType*		pOutPort =     ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
+    OMX_COMPONENTTYPE *		pHandle  =     &iOmxComponent;
 
-    OMX_U8*                 pOutBuffer;
-    OMX_U32                 OutputLength;
-    OMX_U8*                 pTempInBuffer;
-    OMX_U32                 TempInLength;
-    OMX_BOOL                MarkerFlag = OMX_FALSE;
-    OMX_TICKS               TempTimestamp;
-    OMX_BOOL                ResizeNeeded = OMX_FALSE;
+    OMX_U8*					pOutBuffer;
+    OMX_U32					OutputLength;
+    OMX_U8*					pTempInBuffer;
+    OMX_U32					TempInLength;
+    OMX_BOOL				MarkerFlag = OMX_FALSE;
+    OMX_BOOL				ResizeNeeded = OMX_FALSE;
+    OMX_BOOL				MultiSliceFlag = OMX_FALSE;	// yj: multi-slice
 
     OMX_U32 TempInputBufferSize = (2 * sizeof(uint8) * (ipPorts[OMX_PORT_INPUTPORT_INDEX]->PortParam.nBufferSize));
-    OMX_U32 CurrWidth =  ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameWidth;
+    OMX_U32 CurrWidth  = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameWidth;
     OMX_U32 CurrHeight = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameHeight;
 
 
@@ -554,37 +800,37 @@ void OpenmaxAvcAO::DecodeWithoutMarker()
     {
         //Check whether prev output bufer has been released or not
         if (OMX_TRUE == iNewOutBufRequired)
-        {
+    	{
             //Check whether a new output buffer is available or not
-            if (0 == (GetQueueNumElem(pOutputQueue)))
-            {
-                PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithoutMarker OUT output buffer unavailable"));
-                //Store the mark data for output buffer, as it will be overwritten next time
-                if (NULL != ipTargetComponent)
-                {
-                    ipTempTargetComponent = ipTargetComponent;
-                    iTempTargetMarkData = iTargetMarkData;
-                    iMarkPropagate = OMX_TRUE;
-                }
-                return;
-            }
+        	if (0 == (GetQueueNumElem(pOutputQueue)))
+        	{
+            	PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithoutMarker OUT output buffer unavailable"));
+            	//Store the mark data for output buffer, as it will be overwritten next time
+            	if (NULL != ipTargetComponent)
+            	{
+                	ipTempTargetComponent = ipTargetComponent;
+                	iTempTargetMarkData = iTargetMarkData;
+                	iMarkPropagate = OMX_TRUE;
+            	}
+            	return;
+        	}
 
-            ipOutputBuffer = (OMX_BUFFERHEADERTYPE*) DeQueue(pOutputQueue);
-            if (NULL == ipOutputBuffer)
-            {
-                PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithoutMarker Error, output buffer dequeue returned NULL, OUT"));
-                return;
-            }
+        	ipOutputBuffer = (OMX_BUFFERHEADERTYPE*) DeQueue(pOutputQueue);
+        	if (NULL == ipOutputBuffer)
+        	{
+            	PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithoutMarker Error, output buffer dequeue returned NULL, OUT"));
+            	return;
+        	}
 
-            //Do not proceed if the output buffer can't fit the YUV data
-            if ((ipOutputBuffer->nAllocLen < (OMX_U32)(((CurrWidth + 15)&(~15)) *((CurrHeight + 15)&(~15)) * 3 / 2)) && (OMX_TRUE == ipAvcDec->iAvcActiveFlag))
-            {
-                ipOutputBuffer->nFilledLen = 0;
-                ReturnOutputBuffer(ipOutputBuffer, pOutPort);
-                ipOutputBuffer = NULL;
-                return;
-            }
-            ipOutputBuffer->nFilledLen = 0;
+        	//Do not proceed if the output buffer can't fit the YUV data
+        	if (ipOutputBuffer->nAllocLen < (OMX_U32)(((CurrWidth + 15)&(~15)) * ((CurrHeight + 15)&(~15)) * 3 / 2))
+        	{
+            	ipOutputBuffer->nFilledLen = 0;
+            	ReturnOutputBuffer(ipOutputBuffer, pOutPort);
+            	ipOutputBuffer = NULL;
+            	return;
+        	}
+        	ipOutputBuffer->nFilledLen = 0;
             iNewOutBufRequired = OMX_FALSE;
         }
 
@@ -621,18 +867,24 @@ void OpenmaxAvcAO::DecodeWithoutMarker()
         pTempInBuffer = ipTempInputBuffer + iTempConsumedLength;
         TempInLength = iTempInputBufferLength;
 
-        //Output buffer is passed as a short pointer
-        iDecodeReturn = ipAvcDec->AvcDecodeVideo_OMX(pOutBuffer, (OMX_U32*) & OutputLength,
-                        &(pTempInBuffer),
-                        &TempInLength,
-                        &(ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam),
-                        &iFrameCount,
-                        MarkerFlag, &TempTimestamp, &ResizeNeeded);
+		if(iCurrNAL + 1 < iNumNALs)
+			MultiSliceFlag = OMX_TRUE;
 
+        //Output buffer is passed as a short pointer
+		iDecodeReturn = ipAvcDec->AvcDecodeVideo_OMX(
+							&pOutBuffer, &OutputLength, &(ipOutputBuffer->nTimeStamp),
+							&(pTempInBuffer), &(TempInLength), &iFrameTimestamp,
+							&(ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam),
+							&iFrameCount,
+							MarkerFlag,
+							&ResizeNeeded,
+							MultiSliceFlag);
+
+		ipOutputBuffer->pBuffer    = pOutBuffer;	
         ipOutputBuffer->nFilledLen = OutputLength;
 
         //offset not required in our case, set it to zero
-        ipOutputBuffer->nOffset = 0;
+		ipOutputBuffer->nOffset    = 0;
 
         //Set the timestamp equal to the input buffer timestamp
         ipOutputBuffer->nTimeStamp = iFrameTimestamp;
@@ -641,29 +893,16 @@ void OpenmaxAvcAO::DecodeWithoutMarker()
         iTempInputBufferLength = TempInLength;
 
         //If decoder returned error, report it to the client via a callback
-        if (!iDecodeReturn && OMX_FALSE == ipAvcDec->iAvcActiveFlag)
+        if (!iDecodeReturn && OMX_FALSE == iEndofStream)
         {
-            // initialization error
-            PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithoutMarker ErrorBadParameter callback send"));
-
-            (*(ipCallbacks->EventHandler))
-            (pHandle,
-             iCallbackData,
-             OMX_EventError,
-             OMX_ErrorBadParameter,
-             0,
-             NULL);
-        }
-        else if (!iDecodeReturn && OMX_FALSE == iEndofStream)
-        {
-            // decoding error
             PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithoutMarker ErrorStreamCorrupt callback send"));
 
+			// yj: change OMX_ErrorStreamCorrupt to OMX_ErrorUnsupportedSetting
             (*(ipCallbacks->EventHandler))
             (pHandle,
              iCallbackData,
              OMX_EventError,
-             OMX_ErrorStreamCorrupt,
+             OMX_ErrorUnsupportedSetting,
              0,
              NULL);
         }
@@ -721,11 +960,11 @@ void OpenmaxAvcAO::DecodeWithoutMarker()
             }
         }
 
-        //Send the output buffer back when it has some data in it
-        if (ipOutputBuffer->nFilledLen > 0)
+        //Send the output buffer back
+        //if (ipOutputBuffer->nFilledLen > 0)	// yj: for spec over file
         {
-            ReturnOutputBuffer(ipOutputBuffer, pOutPort);
-            ipOutputBuffer = NULL;
+        	ReturnOutputBuffer(ipOutputBuffer, pOutPort);
+        	ipOutputBuffer = NULL;
         }
 
         /* If there is some more processing left with current buffers, re-schedule the AO
@@ -749,18 +988,18 @@ void OpenmaxAvcAO::DecodeWithMarker()
 {
     PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithMarker IN"));
 
-    OMX_COMPONENTTYPE  *pHandle = &iOmxComponent;
-    QueueType* pInputQueue = ipPorts[OMX_PORT_INPUTPORT_INDEX]->pBufferQueue;
+    OMX_COMPONENTTYPE *pHandle = &iOmxComponent;
+    QueueType* pInputQueue  = ipPorts[OMX_PORT_INPUTPORT_INDEX]->pBufferQueue;
     QueueType* pOutputQueue = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->pBufferQueue;
 
-    ComponentPortType*  pInPort = ipPorts[OMX_PORT_INPUTPORT_INDEX];
-    ComponentPortType*  pOutPort = ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
+    ComponentPortType*	pInPort  = ipPorts[OMX_PORT_INPUTPORT_INDEX];
+    ComponentPortType*	pOutPort = ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
 
-    OMX_U8*                 pOutBuffer;
-    OMX_U32                 OutputLength;
-    OMX_BOOL                MarkerFlag = OMX_TRUE;
-    OMX_BOOL                Status;
-    OMX_BOOL                ResizeNeeded = OMX_FALSE;
+    OMX_U8*					pOutBuffer;
+    OMX_U32					OutputLength;
+    OMX_BOOL				MarkerFlag = OMX_TRUE;
+    OMX_BOOL				ResizeNeeded = OMX_FALSE;
+    OMX_BOOL				MultiSliceFlag = OMX_FALSE;	// yj: multi-slice
 
     OMX_U32 CurrWidth =  ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameWidth;
     OMX_U32 CurrHeight = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameHeight;
@@ -770,31 +1009,31 @@ void OpenmaxAvcAO::DecodeWithMarker()
         //Check whether prev output bufer has been released or not
         if (OMX_TRUE == iNewOutBufRequired)
         {
-            //Check whether a new output buffer is available or not
-            if (0 == (GetQueueNumElem(pOutputQueue)))
-            {
-                iNewInBufferRequired = OMX_FALSE;
-                PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithMarker OUT output buffer unavailable"));
-                return;
-            }
+        	//Check whether a new output buffer is available or not
+        	if (0 == (GetQueueNumElem(pOutputQueue)))
+        	{
+            	iNewInBufferRequired = OMX_FALSE;
+            	PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithMarker OUT output buffer unavailable"));
+            	return;
+        	}
 
-            ipOutputBuffer = (OMX_BUFFERHEADERTYPE*) DeQueue(pOutputQueue);
-            if (NULL == ipOutputBuffer)
-            {
-                iNewInBufferRequired = OMX_FALSE;
-                PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithMarker Error, output buffer dequeue returned NULL, OUT"));
-                return;
-            }
+        	ipOutputBuffer = (OMX_BUFFERHEADERTYPE*) DeQueue(pOutputQueue);
+        	if (NULL == ipOutputBuffer)
+        	{
+            	iNewInBufferRequired = OMX_FALSE;
+            	PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithMarker Error, output buffer dequeue returned NULL, OUT"));
+            	return;
+        	}
 
-            //Do not proceed if the output buffer can't fit the YUV data
-            if ((ipOutputBuffer->nAllocLen < (OMX_U32)(((CurrWidth + 15)&(~15)) *((CurrHeight + 15)&(~15)) * 3 / 2)) && (OMX_TRUE == ipAvcDec->iAvcActiveFlag))
-            {
-                ipOutputBuffer->nFilledLen = 0;
-                ReturnOutputBuffer(ipOutputBuffer, pOutPort);
-                ipOutputBuffer = NULL;
-                return;
-            }
-            ipOutputBuffer->nFilledLen = 0;
+        	//Do not proceed if the output buffer can't fit the YUV data
+        	if (ipOutputBuffer->nAllocLen < (OMX_U32)(((CurrWidth + 15)&(~15)) * ((CurrHeight + 15)&(~15)) * 3 / 2))
+        	{
+            	ipOutputBuffer->nFilledLen = 0;
+            	ReturnOutputBuffer(ipOutputBuffer, pOutPort);
+            	ipOutputBuffer = NULL;
+            	return;
+        	}
+        	ipOutputBuffer->nFilledLen = 0;
             iNewOutBufRequired = OMX_FALSE;
         }
 
@@ -822,20 +1061,21 @@ void OpenmaxAvcAO::DecodeWithMarker()
 
         if (iInputCurrLength > 0)
         {
-            //Store the input timestamp into a temp variable
-            ipAvcDec->CurrInputTimestamp = iFrameTimestamp;
-
+            if(iCurrNAL + 1< iNumNALs)
+				MultiSliceFlag = OMX_TRUE;
+		
             //Output buffer is passed as a short pointer
-            iDecodeReturn = ipAvcDec->AvcDecodeVideo_OMX(pOutBuffer, (OMX_U32*) & OutputLength,
-                            &(ipFrameDecodeBuffer),
-                            &(iInputCurrLength),
-                            &(ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam),
-                            &iFrameCount,
-                            MarkerFlag,
-                            &(ipOutputBuffer->nTimeStamp), &ResizeNeeded);
+            iDecodeReturn = ipAvcDec->AvcDecodeVideo_OMX(
+			               &pOutBuffer, &OutputLength, &(ipOutputBuffer->nTimeStamp),
+			               &(ipFrameDecodeBuffer), &(iInputCurrLength), &iFrameTimestamp,						
+                           &(ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam),
+                           &iFrameCount,
+                           MarkerFlag,
+                           &ResizeNeeded,
+                           MultiSliceFlag);
 
+			ipOutputBuffer->pBuffer	   = pOutBuffer;	
             ipOutputBuffer->nFilledLen = OutputLength;
-            //offset not required in our case, set it to zero
             ipOutputBuffer->nOffset = 0;
 
             if (ResizeNeeded == OMX_TRUE)
@@ -858,31 +1098,24 @@ void OpenmaxAvcAO::DecodeWithMarker()
                  NULL);
             }
 
+// RainAde : removed for bug fix (thumbnail) --> this mechanism is from mpeg component but this is not proper for h.264 component
+            //Set the timestamp equal to the input buffer timestamp
+//            if (OMX_TRUE == iUseExtTimestamp)
+//            {
+//                ipOutputBuffer->nTimeStamp = iFrameTimestamp;
+//            }
 
             //If decoder returned error, report it to the client via a callback
-            if (!iDecodeReturn && OMX_FALSE == ipAvcDec->iAvcActiveFlag)
+            if (!iDecodeReturn && OMX_FALSE == iEndofStream)
             {
-                // initialization error
-                PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithoutMarker ErrorBadParameter callback send"));
-
-                (*(ipCallbacks->EventHandler))
-                (pHandle,
-                 iCallbackData,
-                 OMX_EventError,
-                 OMX_ErrorBadParameter,
-                 0,
-                 NULL);
-            }
-            else if (!iDecodeReturn && OMX_FALSE == iEndofStream)
-            {
-                // decode error
                 PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithMarker ErrorStreamCorrupt callback send"));
 
+				// yj: change OMX_ErrorStreamCorrupt to OMX_ErrorUnsupportedSetting
                 (*(ipCallbacks->EventHandler))
                 (pHandle,
                  iCallbackData,
                  OMX_EventError,
-                 OMX_ErrorStreamCorrupt,
+                 OMX_ErrorUnsupportedSetting,
                  0,
                  NULL);
             }
@@ -890,6 +1123,7 @@ void OpenmaxAvcAO::DecodeWithMarker()
 
             if (0 == iInputCurrLength)
             {
+				// yj: multi-slice
                 if (iPVCapabilityFlags.iOMXComponentUsesFullAVCFrames)
                 {
                     iCurrNAL++;
@@ -914,23 +1148,29 @@ void OpenmaxAvcAO::DecodeWithMarker()
                     {
                         ipInputBuffer->nFilledLen = 0;
                         ReturnInputBuffer(ipInputBuffer, pInPort);
+						ipInputBuffer = NULL;
                         iNewInBufferRequired = OMX_TRUE;
                         iIsInputBufferEnded = OMX_TRUE;
-                        ipInputBuffer = NULL;
-                    }
+                		iInputCurrLength = 0; 
+					}
                 }
                 else
                 {
-                    ipInputBuffer->nFilledLen = 0;
-                    ReturnInputBuffer(ipInputBuffer, pInPort);
-                    iNewInBufferRequired = OMX_TRUE;
-                    iIsInputBufferEnded = OMX_TRUE;
-                    ipInputBuffer = NULL;
-                }
+                	ipInputBuffer->nFilledLen = 0;
+                	ReturnInputBuffer(ipInputBuffer, pInPort);
+                	ipInputBuffer = NULL;
+                	iNewInBufferRequired = OMX_TRUE;
+                	iIsInputBufferEnded = OMX_TRUE;
+// RainAde : removed for bug fix (thumbnail)
+//                	iUseExtTimestamp = OMX_TRUE;
+					iInputCurrLength = 0; 
+				}
             }
             else
             {
                 iNewInBufferRequired = OMX_FALSE;
+// RainAde : removed for bug fix (thumbnail)
+//              iUseExtTimestamp = OMX_FALSE;	 //yj
             }
         }
         else if (iEndofStream == OMX_FALSE)
@@ -944,6 +1184,8 @@ void OpenmaxAvcAO::DecodeWithMarker()
             ipInputBuffer = NULL;
             iNewInBufferRequired = OMX_TRUE;
             iIsInputBufferEnded = OMX_TRUE;
+// RainAde : removed for bug fix (thumbnail)
+//			iUseExtTimestamp = OMX_TRUE;
         }
 
 
@@ -973,36 +1215,34 @@ void OpenmaxAvcAO::DecodeWithMarker()
                 PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithMarker OUT"));
 
                 return;
-            }
+            } 
             else if (iDecodeReturn)
             {
-                Status = ipAvcDec->FlushOutput_OMX(pOutBuffer, &OutputLength, &(ipOutputBuffer->nTimeStamp), pOutPort->PortParam.format.video.nFrameWidth, pOutPort->PortParam.format.video.nFrameHeight);
                 ipOutputBuffer->nFilledLen = OutputLength;
-
                 ipOutputBuffer->nOffset = 0;
 
-                if (OMX_FALSE != Status)
-                {
-                    ReturnOutputBuffer(ipOutputBuffer, pOutPort);
-                    ipOutputBuffer = NULL;
+				if (ipOutputBuffer->nFilledLen > 0)
+				{
+					ReturnOutputBuffer(ipOutputBuffer, pOutPort);
+                	ipOutputBuffer = NULL;
 
-                    PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithMarker OUT"));
-                    RunIfNotReady();
-                    return;
-                }
-                else
-                {
-                    iDecodeReturn = OMX_FALSE;
-                    RunIfNotReady();
-                }
-            }
+                	PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : DecodeWithMarker OUT"));
+                	RunIfNotReady();
+                	return;
+				}
+				else
+				{
+					iDecodeReturn = OMX_FALSE;
+					RunIfNotReady();
+				}
+            } 
         }
 
         //Send the output buffer back when it has some data in it
-        if (ipOutputBuffer->nFilledLen > 0)
+        //if (ipOutputBuffer->nFilledLen > 0)	// yj: for spec over file
         {
-            ReturnOutputBuffer(ipOutputBuffer, pOutPort);
-            ipOutputBuffer = NULL;
+        	ReturnOutputBuffer(ipOutputBuffer, pOutPort);
+        	ipOutputBuffer = NULL;
         }
 
 
@@ -1032,13 +1272,15 @@ void OpenmaxAvcAO::ComponentGetRolesOfComponent(OMX_STRING* aRoleString)
 //Component object constructor
 OpenmaxAvcAO::OpenmaxAvcAO()
 {
+// RainAde : removed for bug fix (thumbnail)
+//	iUseExtTimestamp = OMX_TRUE;
     ipAvcDec = NULL;
 
     if (!IsAdded())
     {
         AddToScheduler();
     }
-    PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : constructed"));
+	PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : constructed"));
 }
 
 
@@ -1076,14 +1318,19 @@ OMX_ERRORTYPE OpenmaxAvcAO::ComponentInit()
         iCodecReady = OMX_TRUE;
     }
 
+// RainAde : removed for bug fix (thumbnail)
+//	iUseExtTimestamp = OMX_TRUE;
     iInputCurrLength = 0;
+    //Used in dynamic port reconfiguration
+    iFrameCount = 0;
+
+    // yj: multi-slice
     iNumNALs = 0;
     iCurrNAL = 0;
     iNALOffset = 0;
     oscl_memset(iNALSizeArray, 0, MAX_NAL_PER_FRAME * sizeof(uint32));
-    //Used in dynamic port reconfiguration
-    iFrameCount = 0;
-    PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : ComponentInit OUT"));
+	
+	PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxAvcAO : ComponentInit OUT"));
 
     return Status;
 
@@ -1124,13 +1371,3 @@ OMX_ERRORTYPE OpenmaxAvcAO::GetConfig(
     return OMX_ErrorNotImplemented;
 }
 
-/* This routine will reset the decoder library and some of the associated flags*/
-void OpenmaxAvcAO::ResetComponent()
-{
-    // reset decoder
-    if (ipAvcDec)
-    {
-        ipAvcDec->ResetDecoder();
-    }
-
-}

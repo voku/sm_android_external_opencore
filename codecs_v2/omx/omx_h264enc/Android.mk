@@ -20,11 +20,8 @@ LOCAL_C_INCLUDES := \
 	$(PV_TOP)/codecs_v2/omx/omx_h264enc/src \
  	$(PV_TOP)/codecs_v2/omx/omx_h264enc/include \
  	$(PV_TOP)/extern_libs_v2/khronos/openmax/include \
- 	$(PV_TOP)/codecs_v2/video/avc_h264/enc/src \
- 	$(PV_TOP)/codecs_v2/video/avc_h264/enc/include \
- 	$(PV_TOP)/codecs_v2/video/avc_h264/common/src \
- 	$(PV_TOP)/codecs_v2/video/avc_h264/common/include \
- 	$(PV_TOP)/codecs_v2/utilities/colorconvert/include \
+	$(PV_TOP)/codecs_v2/video/s3c_mfc/enc/src \
+ 	$(PV_TOP)/codecs_v2/video/s3c_mfc/enc/include \
  	$(PV_INCLUDES)
 
 LOCAL_COPY_HEADERS_TO := $(PV_COPY_HEADERS_TO)

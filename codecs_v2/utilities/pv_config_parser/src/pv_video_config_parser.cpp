@@ -50,19 +50,21 @@
 
 #define FOURCC_WMV2     mmioFOURCC_WMC('W','M','V','2')
 #define FOURCC_WMV3     mmioFOURCC_WMC('W','M','V','3')
-#define FOURCC_WMVA     mmioFOURCC_WMC('W','M','V','A')
-#define FOURCC_WVC1     mmioFOURCC_WMC('W','V','C','1')
+#define FOURCC_WMVA		mmioFOURCC_WMC('W','M','V','A')
+#define FOURCC_WVC1		mmioFOURCC_WMC('W','V','C','1')
 //For WMVA
 #define ASFBINDING_SIZE                   1   // size of ASFBINDING is 1 byte
-#define FOURCC_MP42     mmioFOURCC_WMC('M','P','4','2')
-#define FOURCC_MP43     mmioFOURCC_WMC('M','P','4','3')
-#define FOURCC_mp42     mmioFOURCC_WMC('m','p','4','2')
-#define FOURCC_mp43     mmioFOURCC_WMC('m','p','4','3')
+#define FOURCC_MP42		mmioFOURCC_WMC('M','P','4','2')
+#define FOURCC_MP43		mmioFOURCC_WMC('M','P','4','3')
+#define FOURCC_mp42		mmioFOURCC_WMC('m','p','4','2')
+#define FOURCC_mp43		mmioFOURCC_WMC('m','p','4','3')
 
-
+/* Mobile Media Lab. Start */
+#define MAX_VIDEO_WIDTH 720
+#define MAX_VIDEO_HEIGHT 480
+#define MAX_BS_SIZE     (300 * 1024)
+/* Mobile Media Lab. End */
 OSCL_DLL_ENTRY_POINT_DEFAULT()
-
-int32 GetNAL_Config(uint8** bitstream, int32* size);
 
 OSCL_EXPORT_REF int16 pv_video_config_parser(pvVideoConfigParserInputs *aInputs, pvVideoConfigParserOutputs *aOutputs)
 {
@@ -92,6 +94,14 @@ OSCL_EXPORT_REF int16 pv_video_config_parser(pvVideoConfigParserInputs *aInputs,
         aOutputs->height = (uint32)display_height;
         aOutputs->profile = (uint32)profile_level; // for mp4, profile/level info is packed
         aOutputs->level = 0;
+
+		/* Mobile Media Lab. Start */
+		if (aOutputs->width > MAX_VIDEO_WIDTH 
+			|| aOutputs->height > MAX_VIDEO_HEIGHT)
+		{
+			return -17;
+		}
+		/* Mobile Media Lab. End */
     }
     else if (aInputs->iMimeType == PVMF_MIME_H2631998 ||
              aInputs->iMimeType == PVMF_MIME_H2632000)//h263
@@ -103,12 +113,21 @@ OSCL_EXPORT_REF int16 pv_video_config_parser(pvVideoConfigParserInputs *aInputs,
         aOutputs->level = 0;
     }
     else if (aInputs->iMimeType == PVMF_MIME_H264_VIDEO ||
-             aInputs->iMimeType == PVMF_MIME_H264_VIDEO_MP4) //avc
+			aInputs->iMimeType == PVMF_MIME_H264_VIDEO_MP4 || 
+			/* Mobile Media Lab. Start */
+			aInputs->iMimeType == PVMF_MIME_H264_VIDEO_RAW) //avc
+			/* Mobile Media Lab. End */
     {
         int32 width, height, display_width, display_height = 0;
         int32 profile_idc, level_idc = 0;
+		int   is_annexb = 0;
+		int   tmp = 0;
+		int   stream_len = 0;
 
         uint8 *tp = aInputs->inPtr;
+		/* Mobile Media Lab. Start */
+		uint8 tmp_buf[MAX_BS_SIZE];
+		/* Mobile Media Lab. End */
 
         if (aInputs->inBytes > 1)
         {
@@ -117,9 +136,14 @@ OSCL_EXPORT_REF int16 pv_video_config_parser(pvVideoConfigParserInputs *aInputs,
                 // ByteStream Format
                 uint8* tmp_ptr = tp;
                 uint8* buffer_begin = tp;
-                int16 length = 0;
+                int32 length = 0;
                 int initbufsize = aInputs->inBytes;
-                int tConfigSize = 0;
+				/* Mobile Media Lab. Start */
+				is_annexb = 1;
+				if (initbufsize >= MAX_BS_SIZE) initbufsize = MAX_BS_SIZE;
+				oscl_memcpy(tmp_buf, tp, initbufsize);
+				stream_len = initbufsize;
+				/* Mobile Media Lab. End */
                 do
                 {
                     tmp_ptr += length;
@@ -128,14 +152,13 @@ OSCL_EXPORT_REF int16 pv_video_config_parser(pvVideoConfigParserInputs *aInputs,
                     buffer_begin[1] = (length >> 8) & 0xFF;
                     oscl_memcpy(buffer_begin + 2, tmp_ptr, length);
                     buffer_begin += (length + 2);
-                    tConfigSize += (length + 2);
                 }
                 while (initbufsize > 0);
             }
         }
 
-        // check codec info and get settings
-        int16 retval;
+	    // check codec info and get settings
+		int16 retval;
         retval = iGetAVCConfigInfo(tp,
                                    aInputs->inBytes,
                                    (int*) & width,
@@ -152,96 +175,55 @@ OSCL_EXPORT_REF int16 pv_video_config_parser(pvVideoConfigParserInputs *aInputs,
         aOutputs->height = (uint32)display_height;
         aOutputs->profile = (uint32)profile_idc;
         aOutputs->level = (uint32) level_idc;
+
+		/* Mobile Media Lab. Start */
+		if (is_annexb == 1)
+		{
+			aInputs->inBytes = stream_len;
+			oscl_memcpy(tp, tmp_buf, aInputs->inBytes);
+		}
+
+		if (aOutputs->width > MAX_VIDEO_WIDTH 
+			|| aOutputs->height > MAX_VIDEO_HEIGHT)
+		{
+			return -17;
+		}
+		/* Mobile Media Lab. End */
     }
-    else if (aInputs->iMimeType == PVMF_MIME_WMV) //wmv
-    {
-        uint32 dwdat;
-        uint16 wdat;
-        uint8 bdat;
-        uint8 *pData = aInputs->inPtr;
+	else if (aInputs->iMimeType == PVMF_MIME_WMV)
+	{
+		/* Mobile Media Lab. Start */
+		uint32 * p_uint32 = (uint32 *)&(aInputs->inPtr[12]);
 
-        LoadDWORD(dwdat, pData); // Window width
-        LoadDWORD(dwdat, pData); // Window height
-        LoadBYTE(bdat, pData);
-        LoadWORD(wdat, pData);  // Size of image info.
+		/* profile : 
+			0 -> Simple, 4 -> Main, 8 -> Advance
+		*/
+		uint8 profile = (aInputs->inPtr[8] & 0xF0) >> 4;
+		if (profile > 4)
+			return -1;
+		uint32 height = *p_uint32++;
+		uint32 width = *p_uint32;
 
-        // BITMAPINFOHEADER
-        LoadDWORD(dwdat, pData); // Size of BMAPINFOHDR
-        LoadDWORD(dwdat, pData);
-        aOutputs->width = dwdat;
-        LoadDWORD(dwdat, pData);
-        aOutputs->height = dwdat;
+		aOutputs->width = width;
+		aOutputs->height = height;
+		if (aOutputs->width > MAX_VIDEO_WIDTH 
+			|| aOutputs->height > MAX_VIDEO_HEIGHT)
+		{
+			return -17;
+		}		
+		/* Mobile Media Lab. End */
+	}
+	else 
+	{
+		return -1;
+	}
 
-        /* WMV1 and WMV2 are not supported. Rejected here. */
-        /* Code to Check if comp is WMV1 then return not supported */
-        pData += 4;
-        LoadDWORD(dwdat, pData);
-        uint32 NewCompression = dwdat;
-        uint32 NewSeqHeader = 0;
-        uint32 NewProfile = 0;
-        // in case of WMV store "Compression Type as Level"
-        aOutputs->level = NewCompression;
-
-        if (NewCompression != FOURCC_WMV2 &&
-                NewCompression != FOURCC_WMV3 &&
-                NewCompression != FOURCC_WVC1 &&
-                NewCompression != FOURCC_WMVA &&
-                NewCompression != FOURCC_MP42 &&
-                NewCompression != FOURCC_MP43 &&
-                NewCompression != FOURCC_mp42 &&
-                NewCompression != FOURCC_mp43)
-        {
-            return -1;
-        }
-        // get profile etc.
-        // Check sequence header
-        switch (NewCompression)
-        {
-            case FOURCC_WMV3:
-            {
-                // start fresh
-                pData = aInputs->inPtr;
-                pData += (11 + 40); //sizeof(BITMAPINFOHEADER); // position to sequence header
-
-                LoadDWORD(dwdat, pData);
-                NewSeqHeader = dwdat; // this is little endian read sequence header
-
-                NewProfile = (NewSeqHeader & 0xC0) >> 6; // 0 - simple , 1- main, 3 - complex, 2-forbidden
-
-                break;
-            }
-            case FOURCC_WMVA:
-            {
-                pData = aInputs->inPtr;
-                pData += (11 + 40 + ASFBINDING_SIZE); //sizeof(BITMAPINFOHEADER); // position to sequence header
-
-                LoadDWORD(dwdat, pData); // prefix  // this is little endian read sequence header
-                LoadDWORD(dwdat, pData);
-                NewSeqHeader = dwdat;
-
-                NewProfile = (NewSeqHeader & 0xC0) >> 6; // this must be 3
-            }
-            break;
-
-            default:
-
-                NewProfile = 0;
-                break;
-        }
-
-        aOutputs->profile = NewProfile;
-
-    }
-    else
-    {
-        return -1;
-    }
-    return 0;
+	return 0;
 }
 
 
 /* This function finds a nal from the SC's, moves the bitstream pointer to the beginning of the NAL unit, returns the
-    size of the NAL, and at the same time, updates the remaining size in the bitstream buffer that is passed in */
+	size of the NAL, and at the same time, updates the remaining size in the bitstream buffer that is passed in */
 int32 GetNAL_Config(uint8** bitstream, int32* size)
 {
     int i = 0;
@@ -270,11 +252,22 @@ int32 GetNAL_Config(uint8** bitstream, int32* size)
     /* found the SC at the beginning of the NAL, now find the SC at the beginning of the next NAL */
     while (i < *size)
     {
+		/* Mobile Media Lab. Start */
+#if 1    
+		if ((count == 2 && nal_unit[i] == 0x01) ||
+			(count == 3 && nal_unit[i] == 0x01))
+		{
+			i -= count;
+			break;
+		}
+#else
         if (count == 2 && nal_unit[i] == 0x01)
         {
             i -= 2;
             break;
         }
+#endif
+		/* Mobile Media Lab. End */
 
         if (nal_unit[i])
             count = 0;
@@ -284,5 +277,5 @@ int32 GetNAL_Config(uint8** bitstream, int32* size)
     }
 
     *size -= i;
-    return (i - j);
+    return (i -j);
 }

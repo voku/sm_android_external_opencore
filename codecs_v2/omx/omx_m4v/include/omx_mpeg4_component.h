@@ -16,8 +16,8 @@
  * -------------------------------------------------------------------
  */
 /**
-    @file omx_mpeg4_component.h
-    OpenMax decoder_component component.
+	@file omx_mpeg4_component.h
+	OpenMax decoder_component component.
 
 */
 
@@ -33,21 +33,21 @@
 #endif
 
 
-#define INPUT_BUFFER_SIZE_MP4 16000
-// qcif size - 176*144*3/2
-#define OUTPUT_BUFFER_SIZE_MP4 38016
+#define INPUT_BUFFER_SIZE_MP4 64000
+#define OUTPUT_BUFFER_SIZE_MP4 152064
 
 #define NUMBER_INPUT_BUFFER_MP4  10
-#define NUMBER_OUTPUT_BUFFER_MP4  2
+#define NUMBER_OUTPUT_BUFFER_MP4  2  //0    // 2
 
 #define MINIMUM_H263_SHORT_HEADER_SIZE 12
+
 /**
  * The structure for port Type.
  */
 enum
 {
-    MODE_H263 = 0,
-    MODE_MPEG4
+    MODE_MPEG4 = 0,
+    MODE_H263
 };
 
 
@@ -57,6 +57,31 @@ class OpenmaxMpeg4AO : public OmxComponentVideo
 
         OpenmaxMpeg4AO();
         ~OpenmaxMpeg4AO();
+
+		static OMX_ERRORTYPE BaseComponentAllocateBuffer(
+    		OMX_IN OMX_HANDLETYPE hComponent,
+    		OMX_INOUT OMX_BUFFERHEADERTYPE** pBuffer,
+    		OMX_IN OMX_U32 nPortIndex,
+    		OMX_IN OMX_PTR pAppPrivate,
+    		OMX_IN OMX_U32 nSizeBytes);
+		OMX_ERRORTYPE AllocateBuffer(
+    		OMX_IN OMX_HANDLETYPE hComponent,
+    		OMX_INOUT OMX_BUFFERHEADERTYPE** pBuffer,
+    		OMX_IN OMX_U32 nPortIndex,
+    		OMX_IN OMX_PTR pAppPrivate,
+    		OMX_IN OMX_U32 nSizeBytes);
+        static OMX_ERRORTYPE BaseComponentFreeBuffer(
+            OMX_IN  OMX_HANDLETYPE hComponent,
+            OMX_IN  OMX_U32 nPortIndex,
+            OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer);
+        OMX_ERRORTYPE FreeBuffer(
+            OMX_IN  OMX_HANDLETYPE hComponent,
+            OMX_IN  OMX_U32 nPortIndex,
+            OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer);
+        OMX_ERRORTYPE GetConfig(
+            OMX_IN  OMX_HANDLETYPE hComponent,
+            OMX_IN  OMX_INDEXTYPE nIndex,
+            OMX_INOUT OMX_PTR pComponentConfigStructure);
 
         OMX_ERRORTYPE ConstructComponent(OMX_PTR pAppData, OMX_PTR pProxy);
         OMX_ERRORTYPE DestroyComponent();
@@ -72,11 +97,6 @@ class OpenmaxMpeg4AO : public OmxComponentVideo
         void DecodeWithoutMarker();
         void DecodeWithMarker();
 
-        OMX_ERRORTYPE GetConfig(
-            OMX_IN  OMX_HANDLETYPE hComponent,
-            OMX_IN  OMX_INDEXTYPE nIndex,
-            OMX_INOUT OMX_PTR pComponentConfigStructure);
-
         OMX_ERRORTYPE ReAllocatePartialAssemblyBuffers(OMX_BUFFERHEADERTYPE* aInputBufferHdr);
 
     private:
@@ -85,17 +105,15 @@ class OpenmaxMpeg4AO : public OmxComponentVideo
 
         void ReadBits(OMX_U8* aStream, uint8 aNumBits, uint32* aOutData);
 
-        OMX_BOOL                iUseExtTimestamp;
-        Mpeg4Decoder_OMX* ipMpegDecoderObject;
-        OMX_S32 iDecMode;
+        OMX_BOOL			iUseExtTimestamp;
+        Mpeg4Decoder_OMX*	ipMpegDecoderObject;
+        OMX_S32 			iDecMode;
 
         //Parameters required for H.263 source format parsing
         OMX_U32 iH263DataBitPos;
-        OMX_U32 iH263BitPos;
+        OMX_U32	iH263BitPos;
         OMX_U32 iH263BitBuf;
 };
-
-
 
 
 #endif // OMX_MPEG4_COMPONENT_H_INCLUDED

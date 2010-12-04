@@ -24,28 +24,21 @@
 #endif
 
 #ifndef OMX_Component_h
+// RainAde : changed openmax header for opencore ver. 2.0.3
 #include "OMX_Component.h"
+//#include "omx_component.h"
 #endif
 
-#ifndef AVCENC_API_H_INCLUDED
-#include "avcenc_api.h"
+#ifndef __SAMSUNG_SYSLSI_APDEV_MFCLIB_SSBSIPH264ENCODE_H__
+#include "SsbSipH264Encode.h"
 #endif
 
-#ifndef CCRGB24TOYUV420_H_INCLUDED
-#include "ccrgb24toyuv420.h"
-#endif
-
-#ifndef CCRGB12TOYUV420_H_INCLUDED
-#include "ccrgb12toyuv420.h"
-#endif
-
-#ifndef CCYUV420SEMITOYUV420_H_INCLUDED
-#include "ccyuv420semitoyuv420.h"
-#endif
-
-#ifndef OSCL_INT64_UTILS_H_INCLUDED
-#include "oscl_int64_utils.h"
-#endif
+// RainAde for Encoding pic type
+enum
+{
+    PIC_TYPE_INTRA = 0,
+    PIC_TYPE_INTER
+};
 
 class AvcEncoder_OMX
 {
@@ -65,7 +58,7 @@ class AvcEncoder_OMX
                                  OMX_VIDEO_PARAM_VBSMCTYPE aVbsmcType);
 
 
-        AVCEnc_Status AvcEncodeVideo(OMX_U8*    aOutBuffer,
+        OMX_BOOL AvcEncodeVideo(OMX_U8*    aOutBuffer,
                                      OMX_U32*   aOutputLength,
                                      OMX_BOOL*  aBufferOverRun,
                                      OMX_U8**   aOverBufferPointer,
@@ -75,9 +68,9 @@ class AvcEncoder_OMX
                                      OMX_TICKS* aOutTimeStamp,
                                      OMX_BOOL*  aSyncFlag);
 
-        AVCEnc_Status AvcEncodeSendInput(OMX_U8*    aInBuffer,
-                                         OMX_U32*   aInBufSize,
-                                         OMX_TICKS  aInTimeStamp);
+        OMX_BOOL AvcEncodeSendInput(OMX_U8*    aInBuffer,
+                                    OMX_U32*   aInBufSize,
+                                    OMX_TICKS  aInTimeStamp);
 
 
         OMX_ERRORTYPE AvcEncDeinit();
@@ -85,48 +78,19 @@ class AvcEncoder_OMX
         OMX_ERRORTYPE AvcRequestIFrame();
         OMX_BOOL AvcUpdateBitRate(OMX_U32 aEncodedBitRate);
         OMX_BOOL AvcUpdateFrameRate(OMX_U32 aEncodeFramerate);
-        OMX_BOOL GetSpsPpsHeaderFlag();
-
-        /* for avc encoder lib callback functions */
-        int     AVC_DPBAlloc(uint frame_size_in_mbs, uint num_buffers);
-        int     AVC_FrameBind(int indx, uint8** yuv);
-        void    AVC_FrameUnbind(int indx);
-
-
 
     private:
 
-        void CopyToYUVIn(uint8* YUV, int width, int height, int width_16, int height_16);
+	// RainAde : for MFC(avc) encoder
+	int m_avcenc_create_flag;
+	void *m_avcenc_handle;
+	unsigned char * m_avcenc_buffer;
 
-        /* RGB->YUV conversion */
-        ColorConvertBase *ccRGBtoYUV;
-
-        int     iSrcWidth;
-        int     iSrcHeight;
-        int     iFrameOrientation;
-
-        OMX_COLOR_FORMATTYPE    iVideoFormat;
-
-        /* variables needed in operation */
-        AVCHandle iAvcHandle;
-        AVCFrameIO iVidIn;
-        uint8*  iYUVIn;
-        uint8*  iVideoIn;
-        uint8*  iVideoOut;
-        uint32  iTimeStamp;
-        OMX_TICKS iTimeStamp64;
-        OMX_BOOL    iIDR;
-        int     iDispOrd;
-
-        uint8*  iDPB;
-        bool*   iFrameUsed;
-        uint8** iFramePtr;
-        int     iNumFrames;
-
-        OMX_BOOL  iInitialized;
-        OMX_BOOL  iSpsPpsHeaderFlag;
-        OMX_BOOL  iReadyForNextFrame;
-
+	// RainAde : for composer interface
+	int frame_cnt;
+	int hdr_size;
+	int sps;
+	int pps;
 
 };
 

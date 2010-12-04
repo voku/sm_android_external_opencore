@@ -16,8 +16,8 @@
  * -------------------------------------------------------------------
  */
 /**
-    @file omx_mpeg4enc_component.h
-    OpenMax encoder_component component.
+	@file omx_mpeg4enc_component.h
+	OpenMax encoder_component component.
 
 */
 
@@ -32,10 +32,14 @@
 #include "mpeg4_enc.h"
 #endif
 
-
-#define INPUT_BUFFER_SIZE_MP4ENC 38016          //(176 * 144 * 1.5) for YUV 420 format.
+#if 0
+#define INPUT_BUFFER_SIZE_MP4ENC 38016			//(176 * 144 * 1.5) for YUV 420 format.
 #define OUTPUT_BUFFER_SIZE_MP4ENC 8192
-
+#else
+// RainAde
+#define INPUT_BUFFER_SIZE_MP4ENC 202752			//(352 * 288 * 2) for YUV 422 format (fake camera test)
+#define OUTPUT_BUFFER_SIZE_MP4ENC 152064                 // CIF MAX size : we have to find proper size later	
+#endif
 
 #define NUMBER_INPUT_BUFFER_MP4ENC  5
 #define NUMBER_OUTPUT_BUFFER_MP4ENC  2
@@ -72,13 +76,14 @@ class OmxComponentMpeg4EncAO : public OmxComponentVideo
         OMX_BOOL CopyDataToOutputBuffer();
 
         Mpeg4Encoder_OMX* ipMpegEncoderObject;
-        OMX_S32           iEncMode;
+        OMX_S32			  iEncMode;
 
-        OMX_BOOL          iBufferOverRun;
-        OMX_U8*           ipInternalOutBuffer;
-        OMX_U32           iInternalOutBufFilledLen;
-        OMX_TICKS         iOutputTimeStamp;
-        OMX_BOOL          iSyncFlag;
+        OMX_BOOL		  iBufferOverRun;
+        OMX_U8*			  ipInternalOutBuffer;
+        OMX_U32			  iInternalOutBufFilledLen;
+        OMX_TICKS		  iOutputTimeStamp;
+        OMX_BOOL		  iSyncFlag;
+		
 };
 
 #endif // OMX_MPEG4ENC_COMPONENT_H_INCLUDED

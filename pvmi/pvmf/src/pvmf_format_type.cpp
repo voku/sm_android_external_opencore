@@ -101,6 +101,10 @@ OSCL_EXPORT_REF bool PVMFFormatType::isVideo() const
             (pv_mime_strcmp(iMimeStr.c_str(), PVMF_MIME_RGB16) == 0) ||
             (pv_mime_strcmp(iMimeStr.c_str(), PVMF_MIME_RGB24) == 0) ||
             (pv_mime_strcmp(iMimeStr.c_str(), PVMF_MIME_H264_VIDEO_RAW) == 0) ||
+            /* Mobile Media Lab. Start */
+            (pv_mime_strcmp(iMimeStr.c_str(), PVMF_MIME_AVI) == 0) ||     
+            (pv_mime_strcmp(iMimeStr.c_str(), PVMF_MIME_DIVX) == 0) || 
+            /* Mobile Media Lab. End */
             (pv_mime_strcmp(iMimeStr.c_str(), PVMF_MIME_H264_VIDEO_MP4) == 0))
     {
         return true;

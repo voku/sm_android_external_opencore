@@ -16,8 +16,8 @@
  * -------------------------------------------------------------------
  */
 /**
-    @file omx_Avc_component.h
-    OpenMax decoder_component component.
+	@file omx_Avc_component.h
+	OpenMax decoder_component component.
 
 */
 
@@ -32,62 +32,73 @@
 #include "avc_dec.h"
 #endif
 
-#if (defined(TEST_FULL_AVC_FRAME_MODE) || defined(TEST_FULL_AVC_FRAME_MODE_SC))
-#define INPUT_BUFFER_SIZE_AVC (2000 * MAX_NAL_PER_FRAME)
-#else
-#define INPUT_BUFFER_SIZE_AVC 2000
-#undef MAX_NAL_PER_FRAME
-#define MAX_NAL_PER_FRAME 1 /* this component doesn't need to suppoart more than 1 NAL per frame in this mode, so overwrite default */
-#endif
+// yj: multi-slice
+#define NAL_START_CODE_SIZE		 4
 
-#define NAL_START_CODE_SIZE 4
-
-//qcif - output 176*144*3/2
-#define OUTPUT_BUFFER_SIZE_AVC 38016
+#define INPUT_BUFFER_SIZE_AVC	 64000
+#define OUTPUT_BUFFER_SIZE_AVC	 152064
 
 #define NUMBER_INPUT_BUFFER_AVC  10
-#define NUMBER_OUTPUT_BUFFER_AVC  2
+#define NUMBER_OUTPUT_BUFFER_AVC  3   //0    // 3
 
 
 class OpenmaxAvcAO : public OmxComponentVideo
 {
-    public:
+	public:
+		OpenmaxAvcAO();
+		~OpenmaxAvcAO();
 
-        OpenmaxAvcAO();
-        ~OpenmaxAvcAO();
+		static OMX_ERRORTYPE BaseComponentAllocateBuffer(
+									OMX_IN OMX_HANDLETYPE hComponent,
+									OMX_INOUT OMX_BUFFERHEADERTYPE** pBuffer,
+									OMX_IN OMX_U32 nPortIndex,
+									OMX_IN OMX_PTR pAppPrivate,
+									OMX_IN OMX_U32 nSizeBytes);
+		OMX_ERRORTYPE		 AllocateBuffer(
+									OMX_IN OMX_HANDLETYPE hComponent,
+									OMX_INOUT OMX_BUFFERHEADERTYPE** pBuffer,
+									OMX_IN OMX_U32 nPortIndex,
+									OMX_IN OMX_PTR pAppPrivate,
+									OMX_IN OMX_U32 nSizeBytes);
+		static OMX_ERRORTYPE BaseComponentFreeBuffer(
+									OMX_IN  OMX_HANDLETYPE hComponent,
+									OMX_IN  OMX_U32 nPortIndex,
+									OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer);
+		OMX_ERRORTYPE 		 FreeBuffer(
+									OMX_IN  OMX_HANDLETYPE hComponent,
+									OMX_IN  OMX_U32 nPortIndex,
+									OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer);
+		OMX_ERRORTYPE		 GetConfig(
+									OMX_IN  OMX_HANDLETYPE hComponent,
+									OMX_IN  OMX_INDEXTYPE nIndex,
+									OMX_INOUT OMX_PTR pComponentConfigStructure);
+		
+		OMX_ERRORTYPE ConstructComponent(OMX_PTR pAppData, OMX_PTR pProxy);
+		OMX_ERRORTYPE DestroyComponent();
+		OMX_ERRORTYPE ComponentInit();
+		OMX_ERRORTYPE ComponentDeInit();
 
-        OMX_ERRORTYPE ConstructComponent(OMX_PTR pAppData, OMX_PTR pProxy);
-        OMX_ERRORTYPE DestroyComponent();
+        static void	  ComponentGetRolesOfComponent(OMX_STRING* aRoleString);
 
-        OMX_ERRORTYPE ComponentInit();
-        OMX_ERRORTYPE ComponentDeInit();
-
-        static void ComponentGetRolesOfComponent(OMX_STRING* aRoleString);
-
-        void ComponentBufferMgmtWithoutMarker();
-        OMX_BOOL ParseFullAVCFramesIntoNALs(OMX_BUFFERHEADERTYPE* aInputBuffer);
-        void ProcessData();
-        void DecodeWithoutMarker();
-        void DecodeWithMarker();
-        void ResetComponent();
-        OMX_ERRORTYPE GetConfig(
-            OMX_IN  OMX_HANDLETYPE hComponent,
-            OMX_IN  OMX_INDEXTYPE nIndex,
-            OMX_INOUT OMX_PTR pComponentConfigStructure);
-
+		void		  ComponentBufferMgmtWithoutMarker();
+		OMX_BOOL	  ParseFullAVCFramesIntoNALs(OMX_BUFFERHEADERTYPE* aInputBuffer);
+		void		  ProcessData();
+		void		  DecodeWithoutMarker();
+		void		  DecodeWithMarker();
 
     private:
-
+		// RainAde : removed for bug fix (thumbnail)
+		// OMX_BOOL        iUseExtTimestamp;
         AvcDecoder_OMX* ipAvcDec;
-        OMX_BOOL                iDecodeReturn;
+        OMX_BOOL		iDecodeReturn;
 
+        // yj: multi-slice
         // variables for "frame" mode i.e. iOMXComponentNeedsFullAVCFrames is turned on
         OMX_U32 iNALSizeArray[MAX_NAL_PER_FRAME]; // 100 should be more than enough NALs per frame
         OMX_U32 iCurrNAL;
         OMX_U32 iNumNALs;
         OMX_U32 iNALOffset;
+
 };
-
-
 
 #endif // OMX_AVC_COMPONENT_H_INCLUDED

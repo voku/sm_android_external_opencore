@@ -22,86 +22,79 @@
 #include "OMX_Component.h"
 #endif
 
-#ifndef _AVCDEC_API_H_
-#include "avcdec_api.h"
-#endif
-
 #ifndef OSCL_MEM_H_INCLUDED
 #include "oscl_mem.h"
 #endif
 
+#ifndef __SAMSUNG_SYSLSI_APDEV_MFCLIB_SSBSIPH264DECODE_H__
+#include "SsbSipH264Decode.h"
+#endif
 
-#define AVC_DEC_TIMESTAMP_ARRAY_SIZE 17
+//#define MFC_FPS	// for MFC' performance test
+#ifdef MFC_FPS
+#include <sys/time.h>
+#endif
 
-class AVCCleanupObject_OMX
-{
-        AVCHandle* ipavcHandle;
+//#define LOG_NDEBUG 0
+#define LOG_TAG "OMXAVC_MFC"
+#include <utils/Log.h>
 
-    public:
-        AVCCleanupObject_OMX(AVCHandle* aAvcHandle = NULL)
-        {
-            ipavcHandle = aAvcHandle;
-        }
 
-        //! Use destructor to do all the clean up work
-        ~AVCCleanupObject_OMX();
-};
+#define AVCD_TIMESTAMP_ARRAY_SIZE 17
 
 
 class AvcDecoder_OMX
 {
     public:
-        AvcDecoder_OMX()
-        {
-            CurrInputTimestamp = 0;
-            pDpbBuffer = NULL;
-            FrameSize = 0;
-            iAvcActiveFlag = OMX_FALSE;
-            oscl_memset(DisplayTimestampArray, 0, sizeof(OMX_TICKS)*AVC_DEC_TIMESTAMP_ARRAY_SIZE);
-        };
+#ifdef MFC_FPS
+		struct timeval  start, stop;
+		unsigned int	time;
+		int				frame_cnt;
+		int				decode_cnt;
+		int				need_cnt;
 
-        ~AvcDecoder_OMX() { };
+		unsigned int measureTime(struct timeval *start, struct timeval *stop);
+#endif
+		AvcDecoder_OMX()  { };
+		~AvcDecoder_OMX() { };
 
-        AVCCleanupObject_OMX*   pCleanObject;
-        AVCHandle       AvcHandle;
-        AVCDecSPSInfo   SeqInfo;
-        uint32          FrameSize;
-        uint8*          pDpbBuffer;
-        OMX_TICKS       DisplayTimestampArray[AVC_DEC_TIMESTAMP_ARRAY_SIZE];
-        OMX_TICKS       CurrInputTimestamp;
-        OMX_U32         InputBytesConsumed;
-        OMX_BOOL        iAvcActiveFlag;
+		OMX_ERRORTYPE	AvcDecInit_OMX();
+		OMX_ERRORTYPE	AvcDecDeinit_OMX();
+		OMX_BOOL 		AvcDecodeVideo_OMX(	OMX_U8** aOutBuf, OMX_U32* aOutBufSize, OMX_TICKS* aOutTimestamp,
+											OMX_U8** aInBuf, OMX_U32* aInBufSize, OMX_TICKS* aInTimestamp,
+											OMX_PARAM_PORTDEFINITIONTYPE* aPortParam,
+											OMX_S32* iFrameCount, OMX_BOOL aMarkerFlag,
+											OMX_BOOL *aResizeFlag, OMX_BOOL MultiSliceFlag);
+		OMX_BOOL      	GetYuv(OMX_U8** aOutBuf, OMX_U32* aOutBufSize, OMX_TICKS* aOutTimestamp);
 
+	private:
+		OMX_BOOL      	ResetTimestamp(void);
+		OMX_BOOL      	AddTimestamp(OMX_TICKS* time);
+		OMX_BOOL      	GetTimestamp(OMX_TICKS* time);
 
-        OMX_ERRORTYPE AvcDecInit_OMX();
+		int             mfc_create    (void);
+		int             mfc_dec_slice (unsigned char* data, unsigned int size, OMX_BOOL MultiSliceFlag);
+		unsigned char*	mfc_get_yuv   (unsigned int* out_size);
+		int             mfc_flag_video_frame(unsigned char* data, int size);
 
-        OMX_BOOL AvcDecodeVideo_OMX(OMX_U8* aOutBuffer, OMX_U32* aOutputLength,
-                                    OMX_U8** aInputBuf, OMX_U32* aInBufSize,
-                                    OMX_PARAM_PORTDEFINITIONTYPE* aPortParam,
-                                    OMX_S32* iFrameCount, OMX_BOOL aMarkerFlag,
-                                    OMX_TICKS* aOutTimestamp,
-                                    OMX_BOOL *aResizeFlag);
+	private:
+        OMX_S32 		iDisplay_Width, iDisplay_Height;
 
-        OMX_ERRORTYPE AvcDecDeinit_OMX();
+        OMX_TICKS		m_time_queue[AVCD_TIMESTAMP_ARRAY_SIZE];
+		int           	m_time_queue_start;
+		int           	m_time_queue_end;
 
-        OMX_BOOL InitializeVideoDecode_OMX();
+		void*        	m_mfc_handle;
+		unsigned int    m_mfc_buffer_size;
+		unsigned char*	m_mfc_buffer_base;
+		unsigned char* 	m_mfc_buffer_now;
+		int             m_mfc_flag_info_out;
+		int             m_mfc_flag_create;
 
-        OMX_BOOL FlushOutput_OMX(OMX_U8* aOutBuffer, OMX_U32* aOutputLength, OMX_TICKS* aOutTimestamp, OMX_S32 OldWidth, OMX_S32 OldHeight);
-
-        AVCDec_Status GetNextFullNAL_OMX(uint8** aNalBuffer, int32* aNalSize, OMX_U8* aInputBuf, OMX_U32* aInBufSize);
-
-        static int32 AllocateBuffer_OMX(void* aUserData, int32 i, uint8** aYuvBuffer);
-
-        static int32 ActivateSPS_OMX(void* aUserData, uint aSizeInMbs, uint aNumBuffers);
-
-        int32 NSAllocateBuffer_OMX(void* aUserData, int32 i, uint8** aYuvBuffer);
-
-        int32 NSActivateSPS_OMX(void* aUserData, uint aSizeInMbs, uint aNumBuffers);
-
-        void ResetDecoder(); // for repositioning
+		OMX_U8 			delimiter_h264[4];
 };
 
 typedef class AvcDecoder_OMX AvcDecoder_OMX;
 
-#endif  //#ifndef AVC_DEC_H_INCLUDED
+#endif	//#ifndef AVC_DEC_H_INCLUDED
 

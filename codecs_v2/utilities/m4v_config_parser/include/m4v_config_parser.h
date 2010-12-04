@@ -27,24 +27,24 @@
 #define SHORT_HEADER_MODE -4
 
 
-#define VISUAL_OBJECT_SEQUENCE_START_CODE   0x01B0
-#define VISUAL_OBJECT_SEQUENCE_END_CODE     0x01B1
+#define VISUAL_OBJECT_SEQUENCE_START_CODE 	0x01B0
+#define VISUAL_OBJECT_SEQUENCE_END_CODE 	0x01B1
 #define VISUAL_OBJECT_START_CODE   0x01B5
-#define VO_START_CODE           0x8
+#define VO_START_CODE 		    0x8
 #define VO_HEADER_LENGTH        32
 #define VOL_START_CODE 0x12
 #define VOL_START_CODE_LENGTH 28
 
-#define GROUP_START_CODE    0x01B3
+#define GROUP_START_CODE	0x01B3
 #define GROUP_START_CODE_LENGTH  32
 
-#define VOP_ID_CODE_LENGTH      5
-#define VOP_TEMP_REF_CODE_LENGTH    16
+#define VOP_ID_CODE_LENGTH		5
+#define VOP_TEMP_REF_CODE_LENGTH	16
 
-#define USER_DATA_START_CODE        0x01B2
+#define USER_DATA_START_CODE	    0x01B2
 #define USER_DATA_START_CODE_LENGTH 32
 
-#define SHORT_VIDEO_START_MARKER        0x20
+#define SHORT_VIDEO_START_MARKER		0x20
 #define SHORT_VIDEO_START_MARKER_LENGTH  22
 
 typedef struct
@@ -60,18 +60,18 @@ typedef struct
 
 int16 ShowBits(
     mp4StreamType *pStream,
-    uint8 ucNBits,
+    uint32 ucNBits,
     uint32 *pulOutData
 );
 
 int16 FlushBits(
     mp4StreamType *pStream,
-    uint8 ucNBits
+    uint32 ucNBits
 );
 
 int16 ReadBits(
     mp4StreamType *pStream,
-    uint8 ucNBits,
+    uint32 ucNBits,
     uint32 *pulOutData
 );
 
