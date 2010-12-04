@@ -18,37 +18,19 @@
 #ifndef MPEG4_ENC_H_INCLUDED
 #define MPEG4_ENC_H_INCLUDED
 
-
 #ifndef OSCL_MEM_H_INCLUDED
 #include "oscl_mem.h"
 #endif
 
 #ifndef OMX_Component_h
+// RainAde: changed openmax header for opencore ver. 2.0.3
+//#include "omx_component.h"
 #include "OMX_Component.h"
 #endif
 
-#ifndef _MP4ENC_API_H_
-#include "mp4enc_api.h"
+#ifndef __SAMSUNG_SYSLSI_APDEV_MFCLIB_SSBSIPMPEG4ENCODE_H__
+#include "SsbSipMpeg4Encode.h"
 #endif
-
-#ifndef CCRGB24TOYUV420_H_INCLUDED
-#include "ccrgb24toyuv420.h"
-#endif
-
-#ifndef CCRGB12TOYUV420_H_INCLUDED
-#include "ccrgb12toyuv420.h"
-#endif
-
-#ifndef CCYUV420SEMITOYUV420_H_INCLUDED
-#include "ccyuv420semitoyuv420.h"
-#endif
-
-#ifndef OSCL_INT64_UTILS_H_INCLUDED
-#include "oscl_int64_utils.h"
-#endif
-
-
-const uint32 DEFAULT_VOL_HEADER_LENGTH = 28;
 
 enum
 {
@@ -56,13 +38,20 @@ enum
     MODE_MPEG4
 };
 
+// RainAde for Encoding pic type
+enum
+{
+    PIC_TYPE_INTRA = 0,
+    PIC_TYPE_INTER
+};
 
 class Mpeg4Encoder_OMX
 {
     public:
 
         Mpeg4Encoder_OMX();
-
+        ~Mpeg4Encoder_OMX();
+		
         OMX_ERRORTYPE Mp4EncInit(OMX_S32 iEncMode,
                                  OMX_VIDEO_PORTDEFINITIONTYPE aInputParam,
                                  OMX_CONFIG_ROTATIONTYPE aInputOrientationType,
@@ -76,6 +65,7 @@ class Mpeg4Encoder_OMX
                                  OMX_VIDEO_PARAM_H263TYPE aH263Type,
                                  OMX_VIDEO_PARAM_PROFILELEVELTYPE* aProfileLevel);
 
+        OMX_ERRORTYPE Mp4EncDeinit();
 
         OMX_BOOL Mp4EncodeVideo(OMX_U8*    aOutBuffer,
                                 OMX_U32*   aOutputLength,
@@ -91,39 +81,17 @@ class Mpeg4Encoder_OMX
         OMX_BOOL Mp4UpdateBitRate(OMX_U32 aEncodedBitRate);
         OMX_BOOL Mp4UpdateFrameRate(OMX_U32 aEncodeFramerate);
 
-        OMX_ERRORTYPE Mp4EncDeinit();
-
-
-
     private:
 
-        void CopyToYUVIn(uint8* YUV, int width, int height, int width_16, int height_16);
+	// RainAde : for MFC(mpeg4/h263) encoder
+        int m_mpeg4enc_create_flag;
+        void *m_mpeg4enc_handle;
+        unsigned char * m_mpeg4enc_buffer;
 
-        /* RGB->YUV conversion */
-        ColorConvertBase *ccRGBtoYUV;
-
-        VideoEncControls     iEncoderControl;
-        OMX_BOOL             iInitialized;
-        OMX_COLOR_FORMATTYPE iVideoFormat;
-
-        int     iSrcWidth;
-        int     iSrcHeight;
-        int     iFrameOrientation;
-        uint32  iSrcFrameRate;
-        uint8*  iYUVIn;
-        uint8*  iVideoIn;
-        uint8*  iVideoOut;
-        OMX_TICKS  iNextModTime;
-        MP4HintTrack iHintTrack;
-        MP4EncodingMode ENC_Mode;
-
-        OMX_U8 iVolHeader[DEFAULT_VOL_HEADER_LENGTH]; /** Vol header */
-        OMX_U32 iVolHeaderSize;
-        OMX_BOOL iVolHeaderFlag;
-
-
+	// RainAde : for composer interface
+	int frame_cnt;
+	int hdr_size;
 
 };
-
 
 #endif ///#ifndef MPEG4_ENC_H_INCLUDED

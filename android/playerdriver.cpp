@@ -1315,6 +1315,54 @@ void PlayerDriver::HandleInformationalEvent(const PVAsyncInformationalEvent& aEv
     LOGV("HandleInformationalEvent: %s", PVMFStatusToString(status));
 
     switch (status) {
+/* Mobile Media Lab. - Start */
+	case PVMFInfoDivXRemainingRentalCount:
+	{
+		PVExclusivePtr tmp;
+		int remainingRentalCount;
+		aEvent.GetEventData(tmp);
+		remainingRentalCount = (int)tmp;
+		
+		LOGV("PlayerDriver::HandleInformationalEvent -- PVMFInfoDivXRemainingRentalCount (%d)", remainingRentalCount);
+		//Write Send event codes
+		mPvPlayer->sendEvent(MEDIA_INFO, PVMFInfoDivXRemainingRentalCount, remainingRentalCount);
+
+	}
+		break;
+	case PVMFInfoDivXUnsupportedAudio:
+	{
+		LOGV("PlayerDriver::HandleInformationalEvent -- PVMFInfoDivXUnsupportedAudio");
+		//Write Send event codes
+		mPvPlayer->sendEvent(MEDIA_INFO, PVMFInfoDivXUnsupportedAudio, 0);
+
+	}
+		break;
+	case PVMFInfoLongLoadingTime:
+	{
+		PVExclusivePtr tmp;
+		int flag;
+		aEvent.GetEventData(tmp);
+		flag = (int)tmp;
+		LOGV("PlayerDriver::HandleInformationalEvent -- PVMFInfoLongLoadingTime");
+		//Write Send event codes
+		mPvPlayer->sendEvent(MEDIA_INFO, PVMFInfoLongLoadingTime, flag);
+
+	}
+		break;
+	/* Mobile Media Lab. - End */
+	/* Mobile Media Lab. Streaming - Start */ 
+	case PVMFInfoSDPDisplaySize:
+	{	
+		PVExclusivePtr tmp;
+		uint32* dispSize;
+		aEvent.GetEventData(tmp);
+		dispSize = (uint32*)tmp;
+		
+		LOGE("PlayerDriver::HandleInformationalEvent -- PVMFInfoSDPDisplaySize %d, %d", *dispSize, *(dispSize+1));
+		mPvPlayer->sendEvent(MEDIA_SET_VIDEO_SIZE, *dispSize, *(dispSize+1));
+	}
+	break;
+	/* Mobile Media Lab. Streaming - End */ 
         case PVMFInfoEndOfData:
             mEndOfData = true;
             if (mIsLooping) {
@@ -1425,6 +1473,12 @@ void PlayerDriver::HandleInformationalEvent(const PVAsyncInformationalEvent& aEv
             mContentLengthKnown = true;
             break;
 
+        case PVMFInfoTrackDisable: //LOGI("PVMFInfoTrackDisable\n"); break;
+            LOGE("PVMFInfoTrackDisable.");
+            mPvPlayer->sendEvent(MEDIA_ERROR, ::android::MEDIA_ERROR_UNKNOWN,
+                                PVMFInfoTrackDisable);
+            break;
+
         /* Certain events we don't really care about, but don't
          * want log spewage, so just no-op them here.
          */
@@ -1433,6 +1487,10 @@ void PlayerDriver::HandleInformationalEvent(const PVAsyncInformationalEvent& aEv
         case PVMFInfoContentType:
         case PVMFInfoUnderflow:
         case PVMFInfoDataDiscarded:
+//            break;
+        case PVMFInfoActualPlaybackPosition:
+//            LOGV(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>HandleInformationalEvent: type=PVMFInfoActualPlaybackPosition...............");
+        case PVMFInfoProcessingFailure:
             break;
 
         default:

@@ -36,10 +36,10 @@ static const uint32 mask[33] =
     0xffffffff
 };
 
-int32 LocateFrameHeader(uint8 *ptr, int32 size)
+uint32 LocateFrameHeader(uint8 *ptr, uint32 size)
 {
     int32 count = 0;
-    int32 i = size;
+    uint32 i = size;
 
     if (size < 1)
     {
@@ -61,7 +61,7 @@ int32 LocateFrameHeader(uint8 *ptr, int32 size)
     return (size - (i + 1));
 }
 
-void movePointerTo(mp4StreamType *psBits, int32 pos)
+void movePointerTo(mp4StreamType *psBits, uint32 pos)
 {
     uint32 byte_pos;
     if (pos < 0)
@@ -71,12 +71,15 @@ void movePointerTo(mp4StreamType *psBits, int32 pos)
 
     byte_pos = pos >> 3;
 
+	/*
     if (byte_pos > (psBits->numBytes - psBits->bytePos))
     {
         byte_pos = (psBits->numBytes - psBits->bytePos);
     }
+    */
 
-    psBits->bytePos = byte_pos & -4;
+    //psBits->bytePos = byte_pos & -4;
+    psBits->bytePos = byte_pos & 0xFFFC;
     psBits->dataBitPos = psBits->bytePos << 3;
     FlushBits(psBits, ((pos & 0x7) + ((byte_pos & 0x3) << 3)));
 }
@@ -85,34 +88,17 @@ int16 SearchNextM4VFrame(mp4StreamType *psBits)
 {
     int16 status = 0;
     uint8 *ptr;
-    int32 i;
+    uint32 i;
     uint32 initial_byte_aligned_position = (psBits->dataBitPos + 7) >> 3;
 
     ptr = psBits->data + initial_byte_aligned_position;
 
     i = LocateFrameHeader(ptr, psBits->numBytes - initial_byte_aligned_position);
-    if (psBits->numBytes <= initial_byte_aligned_position + i)
+    if (psBits->numBytes <= (initial_byte_aligned_position + i))
     {
         status = -1;
     }
     (void)movePointerTo(psBits, ((i + initial_byte_aligned_position) << 3)); /* ptr + i */
-    return status;
-}
-
-int16 SearchVOLHeader(mp4StreamType *psBits)
-{
-    uint32 codeword = 0;
-    int16 status = 0;
-    do
-    {
-        /* Search for VOL_HEADER */
-        status = SearchNextM4VFrame(psBits); /* search 0x00 0x00 0x01 */
-        if (status != 0)
-            return MP4_INVALID_VOL_PARAM;
-
-        status = ReadBits(psBits, VOL_START_CODE_LENGTH, &codeword);
-    }
-    while ((codeword != VOL_START_CODE) && (status == 0));
     return status;
 }
 
@@ -133,6 +119,37 @@ OSCL_EXPORT_REF int16 iGetM4VConfigInfo(uint8 *buffer, int32 length, int32 *widt
         return MP4_INVALID_VOL_PARAM;
     }
     int32 profilelevel = 0; // dummy value discarded here
+    /* Mobile Media Lab. Start */
+	int32 is_valid = 0;
+	uint32 tmp;
+	/* 
+	check input buffer has visual_object_sequence_start_code or 
+	visual_object_start_code or video_object_start_code or
+	video_object_layer_start_code or short video header 
+	*/
+	ShowBits(&psBits, 32, &tmp);
+	if (tmp == VISUAL_OBJECT_SEQUENCE_START_CODE || 
+		tmp == VISUAL_OBJECT_START_CODE || 
+		(tmp >= 0x0100 && tmp <= 0x011F) || /* video_object_start_code */
+		((tmp & 0x20) == 0x20))				/* video_object_layer_start_code */
+	
+	{
+		/* check MPEG-4 start code */
+		is_valid = 1;
+	}
+	else 
+	{
+		/* check short video header */
+        ShowBits(&psBits, SHORT_VIDEO_START_MARKER_LENGTH, &tmp);
+        if (tmp == SHORT_VIDEO_START_MARKER) is_valid = 1;
+	}
+
+	if (is_valid == 0)
+	{
+		/* this stream may have a garbage data */
+		return MP4_INVALID_VOL_PARAM;
+	}
+	/* Mobile Media Lab. End */
     status = iDecodeVOLHeader(&psBits, width, height, display_width, display_height, &profilelevel);
     return status;
 }
@@ -146,6 +163,11 @@ OSCL_EXPORT_REF int16 iDecodeVOLHeader(mp4StreamType *psBits, int32 *width, int3
     uint32 codeword;
     int32 time_increment_resolution, nbits_time_increment;
     int32 i, j;
+	/* Mobile Media Lab. Start */
+	uint32 vo_ver, vol_ver;
+	vo_ver = 1;
+	vol_ver = 0;
+	/* Mobile Media Lab. End */
 
     *profilelevel = 0x0000FFFF; // init to some invalid value. When this value is returned, then no profilelevel info is available
 
@@ -170,12 +192,7 @@ OSCL_EXPORT_REF int16 iDecodeVOLHeader(mp4StreamType *psBits, int32 *width, int3
 
 
         ReadBits(psBits, 32, &codeword);
-        if (codeword != VISUAL_OBJECT_START_CODE)
-        {
-            if (SearchVOLHeader(psBits) != 0)
-                return MP4_INVALID_VOL_PARAM;
-            goto decode_vol;
-        }
+        if (codeword != VISUAL_OBJECT_START_CODE) return MP4_INVALID_VOL_PARAM;
 
         /*  is_visual_object_identifier            */
         ReadBits(psBits, 1, &codeword);
@@ -183,7 +200,13 @@ OSCL_EXPORT_REF int16 iDecodeVOLHeader(mp4StreamType *psBits, int32 *width, int3
         if (codeword)
         {
             /* visual_object_verid                            */
+			/* Mobile Media Lab. Start */
+#if 0
             ReadBits(psBits, 4, &codeword);
+#else
+			ReadBits(psBits, 4, &vo_ver);
+#endif
+			/* Mobile Media Lab. End */
             /* visual_object_priority                         */
             ReadBits(psBits, 3, &codeword);
         }
@@ -214,8 +237,17 @@ OSCL_EXPORT_REF int16 iDecodeVOLHeader(mp4StreamType *psBits, int32 *width, int3
         }
         else
         {
-            if (SearchVOLHeader(psBits) != 0)
-                return MP4_INVALID_VOL_PARAM;
+            int16 status = 0;
+            do
+            {
+                /* Search for VOL_HEADER */
+                status = SearchNextM4VFrame(psBits); /* search 0x00 0x00 0x01 */
+                if (status != 0)
+                    return MP4_INVALID_VOL_PARAM;
+
+                status = ReadBits(psBits, VOL_START_CODE_LENGTH, &codeword);
+            }
+            while ((codeword != VOL_START_CODE) && (status == 0));
             goto decode_vol;
         }
         /* next_start_code() */
@@ -249,8 +281,17 @@ OSCL_EXPORT_REF int16 iDecodeVOLHeader(mp4StreamType *psBits, int32 *width, int3
             }
             else
             {
-                if (SearchVOLHeader(psBits) != 0)
-                    return MP4_INVALID_VOL_PARAM;
+                int16 status = 0;
+                do
+                {
+                    /* Search for VOL_HEADER */
+                    status = SearchNextM4VFrame(psBits); /* search 0x00 0x00 0x01 */
+                    if (status != 0)
+                        return MP4_INVALID_VOL_PARAM;
+
+                    status = ReadBits(psBits, VOL_START_CODE_LENGTH, &codeword);
+                }
+                while ((codeword != VOL_START_CODE) && (status == 0));
                 goto decode_vol;
             }
         }
@@ -266,19 +307,40 @@ decode_vol:
 
         //Video Object Type Indication
         ReadBits(psBits, 8, &codeword);
+		/* Mobile Media Lab. Start */
+		// for support ASP	
+		// SP object : 0x1, Advanced Real Time Simple : 0xA
+#if 0		
         if (codeword != 1)
         {
             return MP4_INVALID_VOL_PARAM;
         }
-
+#endif	
+		/* Mobile Media Lab. End */
         // is_object_layer_identifier
         ReadBits(psBits, 1, &codeword);
 
+		/* Mobile Media Lab. Start */
+#if 1
+		if (codeword)
+		{
+			/* video_object_layer_ver_id */
+			ReadBits(psBits, 4, &vol_ver);
+			/* video_object_layer_priority */
+			ReadBits(psBits, 3, &codeword);
+		}
+		else
+		{
+			vol_ver = vo_ver;
+		}
+#else
         if (codeword)
         {
             ReadBits(psBits, 4, &codeword);
             ReadBits(psBits, 3, &codeword);
         }
+#endif
+		/* Mobile Media Lab. End */
 
         // aspect ratio
         ReadBits(psBits, 4, &codeword);
@@ -303,11 +365,15 @@ decode_vol:
             }
 
             ReadBits(psBits, 1, &codeword);
-
+			/* Mobile Media Lab. Start */
+			// for support ASP
+#if 0			
             if (!codeword)
             {
                 return MP4_INVALID_VOL_PARAM;
             }
+#endif			
+			/* Mobile Media Lab. End */
 
             ReadBits(psBits, 1, &codeword);
             if (codeword)   /* if (vbv_parameters) {}, page 36 */
@@ -393,6 +459,36 @@ decode_vol:
 
         *width = (*display_width + 15) & -16;
         *height = (*display_height + 15) & -16;
+
+		/* Mobile Media Lab. Start */
+		/* marker_bit */
+		ReadBits(psBits, 1, &codeword);
+		/* interlaced */
+		ReadBits(psBits, 1, &codeword);
+		if (codeword == 1)
+		{
+			return MP4_INVALID_VOL_PARAM;
+		}
+		/* obmc_disalbe */
+		ReadBits(psBits, 1, &codeword);
+		if (codeword != 1)
+		{
+			return MP4_INVALID_VOL_PARAM;
+		}
+		/* sprite_enable */
+		if (vol_ver == 1)
+		{
+			ReadBits(psBits, 1, &codeword);	
+		}
+		else
+		{
+			ReadBits(psBits, 2, &codeword);	
+		}
+		if (codeword != 0)
+		{
+			return MP4_INVALID_VOL_PARAM;
+		}
+		/* Mobile Media Lab. End */
     }
     else
     {
@@ -404,8 +500,17 @@ decode_vol:
         }
         else
         {
-            if (SearchVOLHeader(psBits) != 0)
-                return MP4_INVALID_VOL_PARAM;
+            int16 status = 0;
+            do
+            {
+                /* Search for VOL_HEADER */
+                status = SearchNextM4VFrame(psBits); /* search 0x00 0x00 0x01 */
+                if (status != 0)
+                    return MP4_INVALID_VOL_PARAM;
+
+                status = ReadBits(psBits, VOL_START_CODE_LENGTH, &codeword);
+            }
+            while ((codeword != VOL_START_CODE) && (status == 0));
             goto decode_vol;
         }
     }
@@ -422,7 +527,7 @@ int16 iDecodeShortHeader(mp4StreamType *psBits,
                          int32 *display_height)
 {
     uint32 codeword;
-    int32   extended_PTYPE = 0;
+    int32	extended_PTYPE = 0;
     int32 UFEP = 0;
     int32 custom_PFMT = 0;
 
@@ -548,7 +653,7 @@ int16 iDecodeShortHeader(mp4StreamType *psBits,
         if (codeword) return MP4_INVALID_VOL_PARAM;
         ReadBits(psBits, 3, &codeword);
         ReadBits(psBits, 3, &codeword);
-        if (codeword) return MP4_INVALID_VOL_PARAM;             /* RPS, ISD, AIV */
+        if (codeword) return MP4_INVALID_VOL_PARAM; 			/* RPS, ISD, AIV */
         ReadBits(psBits, 1, &codeword);
         ReadBits(psBits, 4, &codeword);
         if (codeword != 8) return MP4_INVALID_VOL_PARAM;
@@ -597,7 +702,7 @@ int16 iDecodeShortHeader(mp4StreamType *psBits,
 
 int16 ShowBits(
     mp4StreamType *pStream,           /* Input Stream */
-    uint8 ucNBits,          /* nr of bits to read */
+    uint32 ucNBits,          /* nr of bits to read */
     uint32 *pulOutData      /* output target */
 )
 {
@@ -615,7 +720,7 @@ int16 ShowBits(
         if (dataBytePos > pStream->numBytes - 4)
         {
             pStream->bitBuf = 0;
-            for (i = 0; i < pStream->numBytes - dataBytePos; i++)
+            for (i = 0;i < pStream->numBytes - dataBytePos;i++)
             {
                 pStream->bitBuf |= pStream->data[dataBytePos+i];
                 pStream->bitBuf <<= 8;
@@ -640,7 +745,7 @@ int16 ShowBits(
 
 int16 FlushBits(
     mp4StreamType *pStream,           /* Input Stream */
-    uint8 ucNBits                      /* number of bits to flush */
+    uint32 ucNBits                      /* number of bits to flush */
 )
 {
     uint8 *bits;
@@ -671,7 +776,7 @@ int16 FlushBits(
 
 int16 ReadBits(
     mp4StreamType *pStream,           /* Input Stream */
-    uint8 ucNBits,                     /* nr of bits to read */
+    uint32 ucNBits,                     /* nr of bits to read */
     uint32 *pulOutData                 /* output target */
 )
 {
@@ -768,123 +873,71 @@ int16 DecodeUserData(mp4StreamType *pStream)
     return 0;
 }
 
-
-OSCL_EXPORT_REF int16 iGetAVCConfigInfo(uint8 *buffer, int32 length, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc)
+/* Mobile Media Lab. Start */
+OSCL_EXPORT_REF int16 iGetAVCConfigInfo(uint8 *buffer, int32 length, 
+										int32 *width, int32 *height, 
+										int32 *display_width, 
+										int32 *display_height, 
+										int32 *profile_idc, int32 *level_idc)
 {
-    int16 status;
-    mp4StreamType psBits;
-    uint16 sps_length, pps_length;
-    int32 size;
-    int32 i = 0;
-    uint8* sps = NULL;
-    uint8* temp = (uint8 *)OSCL_MALLOC(sizeof(uint8) * length);
-    uint8* pps = NULL;
+	int16 status = MP4_INVALID_VOL_PARAM;
 
+	mp4StreamType psBits;
+	int32 nal_len;
+	int32 len;
+	uint8 * nal;
+	uint16 nal_type;
+	int16 find_pps = 0;
+	int32 total_len = 0;
 
-    if (temp)
-    {
-        sps = temp; // Make a copy of the original pointer to be freed later
-        // Successfull allocation... copy input buffer
-        oscl_memcpy(sps, buffer, length);
-    }
-    else
-    {
-        // Allocation failed
-        return MP4_INVALID_VOL_PARAM;
-    }
+	nal = buffer;
 
-    if (length < 3)
-    {
-        OSCL_FREE(temp);
-        return MP4_INVALID_VOL_PARAM;
-    }
+	if (length < 3)
+	{
+	    return MP4_INVALID_VOL_PARAM;
+	}
 
-    *width = *height = *display_height = *display_width = 0;
+	*width = *height = *display_height = *display_width = 0;
 
-    if (sps[0] == 0 && sps[1] == 0)
-    {
-        /* find SC at the beginning of the NAL */
-        while (sps[i++] == 0 && i < length)
-        {
-        }
+	while (!find_pps)
+	{
+		nal_len = (uint16)(nal[1] << 8) | nal[0];
+		nal += 2;
+		len = nal_len;
+		if (len + total_len + 2 > length)
+		{
+			status = MP4_INVALID_VOL_PARAM;
+			break;
+		}
+		Parser_EBSPtoRBSP(nal, &len);
+		psBits.data = nal;
+		psBits.numBytes = len;
+		psBits.bitBuf = 0;
+		psBits.bitPos = 32;
+		psBits.bytePos = 0;
+		psBits.dataBitPos = 0;
 
-        if (sps[i-1] == 1)
-        {
-            sps += i;
+		nal_type = nal[0] & 0x1F;
+		if (nal_type == 7)
+		{
+			if (DecodeSPS(&psBits, width, height, display_width, display_height, profile_idc, level_idc))
+			{
+				return -1;
+			}
+		}
+		else if (nal_type == 8)
+		{
+			status = DecodePPS(&psBits);
+			find_pps = 1;
+		}
 
-            sps_length = 0;
-            // search for the next start code
-            while (!(sps[sps_length] == 0 && sps[sps_length+1] == 0 && sps[sps_length+2] == 1) &&
-                    sps_length < length - i - 2)
-            {
-                sps_length++;
-            }
+		nal += nal_len;
+		total_len += (nal_len + 2);
+	}
 
-            if (sps_length >= length - i - 2)
-            {
-                OSCL_FREE(temp);
-                return MP4_INVALID_VOL_PARAM;
-            }
-
-            pps_length = length - i - sps_length - 3;
-            pps = sps + sps_length + 3;
-        }
-        else
-        {
-            OSCL_FREE(temp);
-            return MP4_INVALID_VOL_PARAM;
-        }
-    }
-    else
-    {
-        sps_length = (uint16)(sps[1] << 8) | sps[0];
-        sps += 2;
-        pps = sps + sps_length;
-        pps_length = (uint16)(pps[1] << 8) | pps[0];
-        pps += 2;
-    }
-
-    if (sps_length + pps_length > length)
-    {
-        OSCL_FREE(temp);
-        return MP4_INVALID_VOL_PARAM;
-    }
-
-    size = sps_length;
-
-    Parser_EBSPtoRBSP(sps, &size);
-
-    psBits.data = sps;
-    psBits.numBytes = size;
-    psBits.bitBuf = 0;
-    psBits.bitPos = 32;
-    psBits.bytePos = 0;
-    psBits.dataBitPos = 0;
-
-    if (DecodeSPS(&psBits, width, height, display_width, display_height, profile_idc, level_idc))
-    {
-        OSCL_FREE(temp);
-        return MP4_INVALID_VOL_PARAM;
-    }
-
-    // now do PPS
-    size = pps_length;
-
-    Parser_EBSPtoRBSP(pps, &size);
-    psBits.data = pps;
-    psBits.numBytes = size;
-    psBits.bitBuf = 0;
-    psBits.bitPos = 32;
-    psBits.bytePos = 0;
-    psBits.dataBitPos = 0;
-
-    status = DecodePPS(&psBits);
-
-    OSCL_FREE(temp);
-
-    return status;
+	return status;
 }
-
+/* Mobile Media Lab. End */
 
 int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *display_width, int32 *display_height, int32 *profile_idc, int32 *level_idc)
 {
@@ -895,13 +948,18 @@ int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *displ
 
     ReadBits(psBits, 8, &temp);
 
-
-
-    if ((temp & 0x1F) != 7) return MP4_INVALID_VOL_PARAM;
+	if ((temp & 0x1F) != 7) return MP4_INVALID_VOL_PARAM;
 
     ReadBits(psBits, 8, &temp);
 
     *profile_idc = temp;
+	/* Mobile Media Lab. Start */
+	if (temp != 66)
+	{
+		/* this stream is not baseline profile */
+		return MP4_INVALID_VOL_PARAM;
+	}
+	/* Mobile Media Lab. End */
 
     ReadBits(psBits, 1, &temp);
     ReadBits(psBits, 1, &temp);
@@ -911,8 +969,7 @@ int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *displ
 
     *level_idc = temp;
 
-    if (temp > 51)
-        return MP4_INVALID_VOL_PARAM;
+    if (temp > 51) return MP4_INVALID_VOL_PARAM;
 
     ue_v(psBits, &temp);
     ue_v(psBits, &temp);
@@ -967,7 +1024,7 @@ int16 DecodeSPS(mp4StreamType *psBits, int32 *width, int32 *height, int32 *displ
         *display_height = *height - 2 * (top_offset + bottom_offset);
     }
 
-    /*  no need to check further */
+    /*	no need to check further */
 #if USE_LATER
     ReadBits(psBits, 1, &temp);
     if (temp)
@@ -1018,22 +1075,22 @@ int32 DecodeVUI(mp4StreamType *psBits)
             ReadBits(psBits, 8, &temp); /* matrix coefficients */
         }
     }
-    ReadBits(psBits, 1, &temp);/*   chroma_loc_info_present_flag */
+    ReadBits(psBits, 1, &temp);/*	chroma_loc_info_present_flag */
     if (temp)
     {
         ue_v(psBits, &temp); /*  chroma_sample_loc_type_top_field */
         ue_v(psBits, &temp); /*  chroma_sample_loc_type_bottom_field */
     }
 
-    ReadBits(psBits, 1, &temp); /*  timing_info_present_flag*/
+    ReadBits(psBits, 1, &temp); /*	timing_info_present_flag*/
     if (temp)
     {
         ReadBits(psBits, 32, &temp32); /*  num_unit_in_tick*/
-        ReadBits(psBits, 32, &temp32); /*   time_scale */
-        ReadBits(psBits, 1, &temp); /*  fixed_frame_rate_flag */
+        ReadBits(psBits, 32, &temp32); /*	time_scale */
+        ReadBits(psBits, 1, &temp); /*	fixed_frame_rate_flag */
     }
 
-    ReadBits(psBits, 1, &temp); /*  nal_hrd_parameters_present_flag */
+    ReadBits(psBits, 1, &temp); /*	nal_hrd_parameters_present_flag */
     if (temp)
     {
         if (!DecodeHRD(psBits))
@@ -1041,7 +1098,7 @@ int32 DecodeVUI(mp4StreamType *psBits)
             return 1;
         }
     }
-    ReadBits(psBits, 1, &temp32); /*    vcl_hrd_parameters_present_flag*/
+    ReadBits(psBits, 1, &temp32); /*	vcl_hrd_parameters_present_flag*/
     if (temp32)
     {
         if (!DecodeHRD(psBits))
@@ -1051,10 +1108,10 @@ int32 DecodeVUI(mp4StreamType *psBits)
     }
     if (temp || temp32)
     {
-        ReadBits(psBits, 1, &temp);     /*  low_delay_hrd_flag */
+        ReadBits(psBits, 1, &temp);		/*	low_delay_hrd_flag */
     }
-    ReadBits(psBits, 1, &temp); /*  pic_struct_present_flag */
-    status = ReadBits(psBits, 1, &temp); /* _restriction_flag */
+    ReadBits(psBits, 1, &temp); /*	pic_struct_present_flag */
+    status = ReadBits(psBits, 1, &temp); /*	_restriction_flag */
     if (status != 0) // buffer overrun
     {
         return 1;
@@ -1062,13 +1119,13 @@ int32 DecodeVUI(mp4StreamType *psBits)
 
     if (temp)
     {
-        ReadBits(psBits, 1, &temp); /*  motion_vectors_over_pic_boundaries_flag */
-        ue_v(psBits, &temp); /* max_bytes_per_pic_denom */
-        ue_v(psBits, &temp); /* max_bits_per_mb_denom */
-        ue_v(psBits, &temp); /* log2_max_mv_length_horizontal */
-        ue_v(psBits, &temp); /* log2_max_mv_length_vertical */
-        ue_v(psBits, &temp); /* num_reorder_frames */
-        ue_v(psBits, &temp); /* max_dec_frame_buffering */
+        ReadBits(psBits, 1, &temp); /*	motion_vectors_over_pic_boundaries_flag */
+        ue_v(psBits, &temp); /*	max_bytes_per_pic_denom */
+        ue_v(psBits, &temp); /*	max_bits_per_mb_denom */
+        ue_v(psBits, &temp); /*	log2_max_mv_length_horizontal */
+        ue_v(psBits, &temp); /*	log2_max_mv_length_vertical */
+        ue_v(psBits, &temp); /*	num_reorder_frames */
+        ue_v(psBits, &temp); /*	max_dec_frame_buffering */
     }
 
     return 0; // 0 for success
@@ -1083,18 +1140,18 @@ int32 DecodeHRD(mp4StreamType *psBits)
     int32 status;
 
     ue_v(psBits, &cpb_cnt_minus1);
-    ReadBits(psBits, 4, &temp); /*  bit_rate_scale */
-    ReadBits(psBits, 4, &temp); /*  cpb_size_scale */
+    ReadBits(psBits, 4, &temp); /*	bit_rate_scale */
+    ReadBits(psBits, 4, &temp); /*	cpb_size_scale */
     for (i = 0; i <= cpb_cnt_minus1; i++)
     {
-        ue_v(psBits, &temp); /* bit_rate_value_minus1[i] */
-        ue_v(psBits, &temp); /* cpb_size_value_minus1[i] */
-        ue_v(psBits, &temp); /* cbr_flag[i] */
+        ue_v(psBits, &temp); /*	bit_rate_value_minus1[i] */
+        ue_v(psBits, &temp); /*	cpb_size_value_minus1[i] */
+        ue_v(psBits, &temp); /*	cbr_flag[i] */
     }
-    ReadBits(psBits, 5, &temp); /*  initial_cpb_removal_delay_length_minus1 */
-    ReadBits(psBits, 5, &temp); /*  cpb_removal_delay_length_minus1 */
-    ReadBits(psBits, 5, &temp); /*  dpb_output_delay_length_minus1 */
-    status = ReadBits(psBits, 5, &temp); /* time_offset_length  */
+    ReadBits(psBits, 5, &temp); /*	initial_cpb_removal_delay_length_minus1 */
+    ReadBits(psBits, 5, &temp); /*	cpb_removal_delay_length_minus1 */
+    ReadBits(psBits, 5, &temp); /*	dpb_output_delay_length_minus1 */
+    status = ReadBits(psBits, 5, &temp); /*	time_offset_length	*/
 
     if (status != 0) // buffer overrun
     {
@@ -1190,7 +1247,7 @@ void Parser_EBSPtoRBSP(uint8 *nal_unit, int32 *size)
 
     count = 0;
     j = i++;
-    for (; i < *size; i++)
+    for (;i < *size; i++)
     {
         if (count == 2 && nal_unit[i] == 0x03)
         {

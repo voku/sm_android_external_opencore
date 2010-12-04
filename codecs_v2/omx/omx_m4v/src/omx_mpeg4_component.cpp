@@ -46,6 +46,8 @@ static const uint32 mask[33] =
 // This function is called by OMX_GetHandle and it creates an instance of the mpeg4 component AO
 OSCL_EXPORT_REF OMX_ERRORTYPE Mpeg4OmxComponentFactory(OMX_OUT OMX_HANDLETYPE* pHandle, OMX_IN  OMX_PTR pAppData, OMX_IN OMX_PTR pProxy , OMX_STRING aOmxLibName, OMX_PTR &aOmxLib, OMX_PTR aOsclUuid, OMX_U32 &aRefCount)
 {
+	LOGV("++++++++++++++ Mpeg4OmxComponentFactory ++++++++++++++\n");
+
     OSCL_UNUSED_ARG(aOmxLibName);
     OSCL_UNUSED_ARG(aOmxLib);
     OSCL_UNUSED_ARG(aOsclUuid);
@@ -64,7 +66,7 @@ OSCL_EXPORT_REF OMX_ERRORTYPE Mpeg4OmxComponentFactory(OMX_OUT OMX_HANDLETYPE* p
         return OMX_ErrorInsufficientResources;
     }
 
-    // set decoding mode to H263
+    // set decoding mode to MPEG4
     pOpenmaxAOType->SetDecoderMode(MODE_MPEG4);
 
     //Call the construct component to initialize OMX types
@@ -79,6 +81,8 @@ OSCL_EXPORT_REF OMX_ERRORTYPE Mpeg4OmxComponentFactory(OMX_OUT OMX_HANDLETYPE* p
 // This function is called by OMX_FreeHandle when component AO needs to be destroyed
 OSCL_EXPORT_REF OMX_ERRORTYPE Mpeg4OmxComponentDestructor(OMX_IN OMX_HANDLETYPE pHandle, OMX_PTR &aOmxLib, OMX_PTR aOsclUuid, OMX_U32 &aRefCount)
 {
+	LOGV("------------- Mpeg4OmxComponentDestructor ---------------\n");
+
     OSCL_UNUSED_ARG(aOmxLib);
     OSCL_UNUSED_ARG(aOsclUuid);
     OSCL_UNUSED_ARG(aRefCount);
@@ -98,6 +102,8 @@ OSCL_EXPORT_REF OMX_ERRORTYPE Mpeg4OmxComponentDestructor(OMX_IN OMX_HANDLETYPE 
 // This function is called by OMX_GetHandle and it creates an instance of the h263 component AO
 OSCL_EXPORT_REF OMX_ERRORTYPE H263OmxComponentFactory(OMX_OUT OMX_HANDLETYPE* pHandle, OMX_IN  OMX_PTR pAppData, OMX_IN OMX_PTR pProxy, OMX_STRING aOmxLibName, OMX_PTR &aOmxLib, OMX_PTR aOsclUuid, OMX_U32 &aRefCount)
 {
+	LOGV("+++++++++++++ H263OmxComponentFactory ++++++++++++\n");
+
     OSCL_UNUSED_ARG(aOmxLibName);
     OSCL_UNUSED_ARG(aOmxLib);
     OSCL_UNUSED_ARG(aOsclUuid);
@@ -130,6 +136,8 @@ OSCL_EXPORT_REF OMX_ERRORTYPE H263OmxComponentFactory(OMX_OUT OMX_HANDLETYPE* pH
 // This function is called by OMX_FreeHandle when component AO needs to be destroyed
 OSCL_EXPORT_REF OMX_ERRORTYPE H263OmxComponentDestructor(OMX_IN OMX_HANDLETYPE pHandle, OMX_PTR &aOmxLib, OMX_PTR aOsclUuid, OMX_U32 &aRefCount)
 {
+	LOGV("--------------- H263OmxComponentDestructor ------------\n");
+
     OSCL_UNUSED_ARG(aOmxLib);
     OSCL_UNUSED_ARG(aOsclUuid);
     OSCL_UNUSED_ARG(aRefCount);
@@ -148,10 +156,16 @@ OSCL_EXPORT_REF OMX_ERRORTYPE H263OmxComponentDestructor(OMX_IN OMX_HANDLETYPE p
 
 #if (DYNAMIC_LOAD_OMX_M4V_COMPONENT || DYNAMIC_LOAD_OMX_H263_COMPONENT)
 class Mpeg4H263OmxSharedLibraryInterface: public OsclSharedLibraryInterface,
-        public OmxSharedLibraryInterface
+            public OmxSharedLibraryInterface
 
 {
     public:
+        static Mpeg4H263OmxSharedLibraryInterface *Instance()
+        {
+            static Mpeg4H263OmxSharedLibraryInterface omxinterface;
+            return &omxinterface;
+        };
+
         OsclAny *QueryOmxComponentInterface(const OsclUuid& aOmxTypeId, const OsclUuid& aInterfaceId)
         {
             if (PV_OMX_M4VDEC_UUID == aOmxTypeId)
@@ -186,6 +200,7 @@ class Mpeg4H263OmxSharedLibraryInterface: public OsclSharedLibraryInterface,
             }
             return NULL;
         };
+    private:
         Mpeg4H263OmxSharedLibraryInterface() {};
 };
 
@@ -194,13 +209,7 @@ extern "C"
 {
     OSCL_EXPORT_REF OsclAny* PVGetInterface()
     {
-        return (OsclAny*) OSCL_NEW(Mpeg4H263OmxSharedLibraryInterface, ());
-    }
-
-    OSCL_EXPORT_REF void PVReleaseInterface(OsclSharedLibraryInterface* aInstance)
-    {
-        Mpeg4H263OmxSharedLibraryInterface* module = (Mpeg4H263OmxSharedLibraryInterface*)aInstance;
-        OSCL_DELETE(module);
+        return Mpeg4H263OmxSharedLibraryInterface::Instance();
     }
 }
 
@@ -268,12 +277,13 @@ OMX_ERRORTYPE OpenmaxMpeg4AO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProx
 
     // PV capability
     iPVCapabilityFlags.iOMXComponentSupportsExternalInputBufferAlloc = OMX_TRUE;
-    iPVCapabilityFlags.iOMXComponentSupportsExternalOutputBufferAlloc = OMX_TRUE;
+    iPVCapabilityFlags.iOMXComponentSupportsExternalOutputBufferAlloc = OMX_FALSE;
     iPVCapabilityFlags.iOMXComponentSupportsMovableInputBuffers = OMX_TRUE;
     iPVCapabilityFlags.iOMXComponentSupportsPartialFrames = OMX_TRUE;
-    iPVCapabilityFlags.iOMXComponentUsesNALStartCodes = OMX_FALSE;
+    //iPVCapabilityFlags.iOMXComponentNeedsNALStartCode = OMX_FALSE;	// 2.0
+    iPVCapabilityFlags.iOMXComponentUsesNALStartCodes = OMX_FALSE;	// 2.03
     iPVCapabilityFlags.iOMXComponentCanHandleIncompleteFrames = OMX_TRUE;
-    iPVCapabilityFlags.iOMXComponentUsesFullAVCFrames = OMX_FALSE;
+    iPVCapabilityFlags.iOMXComponentUsesFullAVCFrames = OMX_FALSE;	// 2.03
 
     if (ipAppPriv)
     {
@@ -297,7 +307,7 @@ OMX_ERRORTYPE OpenmaxMpeg4AO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProx
     }
 
     /** Domain specific section for the ports. */
-    ipPorts[OMX_PORT_INPUTPORT_INDEX]->PortParam.nPortIndex = OMX_PORT_INPUTPORT_INDEX;
+	ipPorts[OMX_PORT_INPUTPORT_INDEX]->PortParam.nPortIndex = OMX_PORT_INPUTPORT_INDEX;	// 2.03
     ipPorts[OMX_PORT_INPUTPORT_INDEX]->PortParam.eDomain = OMX_PortDomainVideo;
     if (iDecMode == MODE_MPEG4)
     {
@@ -329,7 +339,7 @@ OMX_ERRORTYPE OpenmaxMpeg4AO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProx
     ipPorts[OMX_PORT_INPUTPORT_INDEX]->PortParam.bPopulated = OMX_FALSE;
 
 
-    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.nPortIndex = OMX_PORT_OUTPUTPORT_INDEX;
+	ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.nPortIndex = OMX_PORT_OUTPUTPORT_INDEX;	// 2.03
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.eDomain = OMX_PortDomainVideo;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.cMIMEType = (OMX_STRING)"raw";
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.pNativeRender = 0;
@@ -337,9 +347,7 @@ OMX_ERRORTYPE OpenmaxMpeg4AO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProx
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.eColorFormat = OMX_COLOR_FormatYUV420Planar;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameWidth = 176; //320; //176;
-    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nStride = 176;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameHeight = 144; //240; //144;
-    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nSliceHeight = 144;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nBitrate = 64000;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.xFramerate = (15 << 16);
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.eDir = OMX_DirOutput;
@@ -353,28 +361,17 @@ OMX_ERRORTYPE OpenmaxMpeg4AO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProx
     if (iDecMode == MODE_MPEG4)
     {
         //Default values for mpeg4 video param port
-        ipPorts[OMX_PORT_INPUTPORT_INDEX]->VideoMpeg4.nPortIndex = OMX_PORT_INPUTPORT_INDEX;
+        ipPorts[OMX_PORT_INPUTPORT_INDEX]->VideoMpeg4.nPortIndex = OMX_PORT_INPUTPORT_INDEX;	// 2.03
         ipPorts[OMX_PORT_INPUTPORT_INDEX]->VideoMpeg4.eProfile = OMX_VIDEO_MPEG4ProfileSimple;
-        ipPorts[OMX_PORT_INPUTPORT_INDEX]->VideoMpeg4.eLevel = OMX_VIDEO_MPEG4Level3;
+        ipPorts[OMX_PORT_INPUTPORT_INDEX]->VideoMpeg4.eLevel = OMX_VIDEO_MPEG4Level1;
 
-        ipPorts[OMX_PORT_INPUTPORT_INDEX]->ProfileLevel.nPortIndex = OMX_PORT_INPUTPORT_INDEX;
+		ipPorts[OMX_PORT_INPUTPORT_INDEX]->ProfileLevel.nPortIndex = OMX_PORT_INPUTPORT_INDEX;	// 2.03
         ipPorts[OMX_PORT_INPUTPORT_INDEX]->ProfileLevel.nProfileIndex = 0;
         ipPorts[OMX_PORT_INPUTPORT_INDEX]->ProfileLevel.eProfile = OMX_VIDEO_MPEG4ProfileSimple;
-        ipPorts[OMX_PORT_INPUTPORT_INDEX]->ProfileLevel.eLevel = OMX_VIDEO_MPEG4Level3;
-        oscl_strncpy((OMX_STRING)iComponentRole, (OMX_STRING)"video_decoder.mpeg4", OMX_MAX_STRINGNAME_SIZE);
+        ipPorts[OMX_PORT_INPUTPORT_INDEX]->ProfileLevel.eLevel = OMX_VIDEO_MPEG4Level1;
     }
     else if (iDecMode == MODE_H263)
     {
-        //Default values for h263 video param port
-        ipPorts[OMX_PORT_INPUTPORT_INDEX]->VideoH263.nPortIndex = OMX_PORT_INPUTPORT_INDEX;
-        ipPorts[OMX_PORT_INPUTPORT_INDEX]->VideoH263.eProfile = (OMX_VIDEO_H263PROFILETYPE) (OMX_VIDEO_H263ProfileBaseline | OMX_VIDEO_H263ProfileISWV2);
-        ipPorts[OMX_PORT_INPUTPORT_INDEX]->VideoH263.eLevel = OMX_VIDEO_H263Level45;
-
-        ipPorts[OMX_PORT_INPUTPORT_INDEX]->ProfileLevel.nPortIndex = OMX_PORT_INPUTPORT_INDEX;
-        ipPorts[OMX_PORT_INPUTPORT_INDEX]->ProfileLevel.nProfileIndex = 0;
-        ipPorts[OMX_PORT_INPUTPORT_INDEX]->ProfileLevel.eProfile = OMX_VIDEO_H263ProfileBaseline | OMX_VIDEO_H263ProfileISWV2;
-        ipPorts[OMX_PORT_INPUTPORT_INDEX]->ProfileLevel.eLevel = OMX_VIDEO_H263Level45;
-        oscl_strncpy((OMX_STRING)iComponentRole, (OMX_STRING)"video_decoder.h263", OMX_MAX_STRINGNAME_SIZE);
 
     }
 
@@ -424,10 +421,14 @@ OMX_ERRORTYPE OpenmaxMpeg4AO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProx
         ipMpegDecoderObject = NULL;
     }
     ipMpegDecoderObject = OSCL_NEW(Mpeg4Decoder_OMX, ());
+    if (ipMpegDecoderObject == NULL)
+    {
+        return OMX_ErrorInsufficientResources;
+    }
+
     oscl_memset(ipMpegDecoderObject, 0, sizeof(Mpeg4Decoder_OMX));
 
 #if PROXY_INTERFACE
-
     ((ProxyApplication_OMX*)ipComponentProxy)->ComponentSendCommand = BaseComponentSendCommand;
     ((ProxyApplication_OMX*)ipComponentProxy)->ComponentGetParameter = BaseComponentGetParameter;
     ((ProxyApplication_OMX*)ipComponentProxy)->ComponentSetParameter = BaseComponentSetParameter;
@@ -448,8 +449,8 @@ OMX_ERRORTYPE OpenmaxMpeg4AO::ConstructComponent(OMX_PTR pAppData, OMX_PTR pProx
 
 
 /** This function is called by the omx core when the component
-    * is disposed by the IL client with a call to FreeHandle().
-    */
+	* is disposed by the IL client with a call to FreeHandle().
+	*/
 
 OMX_ERRORTYPE OpenmaxMpeg4AO::DestroyComponent()
 {
@@ -478,7 +479,284 @@ OMX_ERRORTYPE OpenmaxMpeg4AO::DestroyComponent()
     return OMX_ErrorNone;
 }
 
+OMX_ERRORTYPE OpenmaxMpeg4AO::BaseComponentAllocateBuffer(
+    OMX_IN OMX_HANDLETYPE hComponent,
+    OMX_INOUT OMX_BUFFERHEADERTYPE** pBuffer,
+    OMX_IN OMX_U32 nPortIndex,
+    OMX_IN OMX_PTR pAppPrivate,
+    OMX_IN OMX_U32 nSizeBytes)
+{
+    OMX_ERRORTYPE Status;
 
+	/*
+	 * This function is called only OMX_PORT_OUTPUTPORT_INDEX
+	 */
+/*
+    OmxComponentBase* pOpenmaxBaseType = (OmxComponentBase*)((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate;
+    if (NULL == pOpenmaxBaseType)
+    {
+        return OMX_ErrorBadParameter;
+    }
+*/
+    OpenmaxMpeg4AO* pOpenmaxAOType = (OpenmaxMpeg4AO*)((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate;
+    if (NULL == pOpenmaxAOType)
+    {
+        return OMX_ErrorBadParameter;
+    }
+
+	//if(nPortIndex == OMX_PORT_INPUTPORT_INDEX)
+    //	Status = pOpenmaxBaseType->AllocateBuffer(hComponent, pBuffer, nPortIndex, pAppPrivate, nSizeBytes);
+	//else if(nPortIndex == OMX_PORT_OUTPUTPORT_INDEX)
+	    Status = pOpenmaxAOType->AllocateBuffer(hComponent, pBuffer, nPortIndex, pAppPrivate, nSizeBytes);
+
+    return Status;
+}
+
+OMX_ERRORTYPE OpenmaxMpeg4AO::AllocateBuffer(
+    OMX_IN OMX_HANDLETYPE hComponent,
+    OMX_INOUT OMX_BUFFERHEADERTYPE** pBuffer,
+    OMX_IN OMX_U32 nPortIndex,
+    OMX_IN OMX_PTR pAppPrivate,
+    OMX_IN OMX_U32 nSizeBytes)
+{
+    OSCL_UNUSED_ARG(hComponent);
+    PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : AllocateBuffer IN"));
+
+    ComponentPortType* pBaseComponentPort;
+    OMX_U32 ii;
+
+    if (nPortIndex >= iNumPorts)
+    {
+        PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : AllocateBuffer error bad port index"));
+        return OMX_ErrorBadPortIndex;
+    }
+
+    pBaseComponentPort = ipPorts[nPortIndex];
+
+    if (pBaseComponentPort->TransientState != OMX_StateIdle)
+    {
+        PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : AllocateBuffer error incorrect state"));
+        return OMX_ErrorIncorrectStateTransition;
+    }
+
+    if (NULL == pBaseComponentPort->pBuffer)
+    {
+        pBaseComponentPort->pBuffer = (OMX_BUFFERHEADERTYPE**) oscl_calloc(pBaseComponentPort->PortParam.nBufferCountActual, sizeof(OMX_BUFFERHEADERTYPE*));
+		if (NULL == pBaseComponentPort->pBuffer)
+		{
+			PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : AllocateBuffer error insufficient resources"));
+			return OMX_ErrorInsufficientResources;
+		}
+
+        pBaseComponentPort->BufferState = (OMX_U32*) oscl_calloc(pBaseComponentPort->PortParam.nBufferCountActual, sizeof(OMX_U32));
+		if (NULL == pBaseComponentPort->BufferState)
+		{
+			PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : AllocateBuffer error insufficient resources"));
+			return OMX_ErrorInsufficientResources;
+		}
+    }
+
+    for (ii = 0; ii < pBaseComponentPort->PortParam.nBufferCountActual; ii++)
+    {
+        if (!(pBaseComponentPort->BufferState[ii] & BUFFER_ALLOCATED) &&
+                !(pBaseComponentPort->BufferState[ii] & BUFFER_ASSIGNED))
+        {
+            pBaseComponentPort->pBuffer[ii] = (OMX_BUFFERHEADERTYPE*) oscl_malloc(sizeof(OMX_BUFFERHEADERTYPE));
+            if (NULL == pBaseComponentPort->pBuffer[ii])
+            {
+                PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : AllocateBuffer error insufficient resources"));
+                return OMX_ErrorInsufficientResources;
+            }
+            SetHeader(pBaseComponentPort->pBuffer[ii], sizeof(OMX_BUFFERHEADERTYPE));
+
+            /* allocate the buffer */
+			//pBaseComponentPort->pBuffer[ii]->pBuffer -> using MFC' output buf
+			pBaseComponentPort->pBuffer[ii]->nAllocLen = nSizeBytes;
+            pBaseComponentPort->pBuffer[ii]->nFlags = 0;
+            pBaseComponentPort->pBuffer[ii]->pPlatformPrivate = pBaseComponentPort;
+
+            pBaseComponentPort->pBuffer[ii]->pAppPrivate = pAppPrivate;
+            *pBuffer = pBaseComponentPort->pBuffer[ii];
+            pBaseComponentPort->BufferState[ii] |= BUFFER_ALLOCATED;
+            pBaseComponentPort->BufferState[ii] |= HEADER_ALLOCATED;
+
+            if (OMX_DirInput == pBaseComponentPort->PortParam.eDir)
+            {
+                pBaseComponentPort->pBuffer[ii]->nInputPortIndex = nPortIndex;
+                // here is assigned a non-valid port index
+                pBaseComponentPort->pBuffer[ii]->nOutputPortIndex = iNumPorts;
+            }
+            else
+            {
+                // here is assigned a non-valid port index
+                pBaseComponentPort->pBuffer[ii]->nInputPortIndex = iNumPorts;
+                pBaseComponentPort->pBuffer[ii]->nOutputPortIndex = nPortIndex;
+            }
+
+            pBaseComponentPort->NumAssignedBuffers++;
+
+            if (pBaseComponentPort->PortParam.nBufferCountActual == pBaseComponentPort->NumAssignedBuffers)
+            {
+                pBaseComponentPort->PortParam.bPopulated = OMX_TRUE;
+
+                if (OMX_TRUE == iStateTransitionFlag)
+                {
+                    //Reschedule the AO for a state change (Loaded->Idle) if its pending on buffer allocation
+                    RunIfNotReady();
+                    //Set the corresponding flags
+                    iStateTransitionFlag = OMX_FALSE;
+                }
+            }
+
+            PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : AllocateBuffer OUT"));
+            return OMX_ErrorNone;
+        }
+    }
+
+    PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : AllocateBuffer OUT"));
+    
+	return OMX_ErrorInsufficientResources;
+}
+
+OMX_ERRORTYPE OpenmaxMpeg4AO::BaseComponentFreeBuffer(
+    OMX_IN  OMX_HANDLETYPE hComponent,
+    OMX_IN  OMX_U32 nPortIndex,
+    OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer)
+{
+    OmxComponentBase* pOpenmaxBaseType = (OmxComponentBase*)((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate;
+    OpenmaxMpeg4AO* pOpenmaxAOType = (OpenmaxMpeg4AO*)((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate;
+    OMX_ERRORTYPE Status;
+
+    if (NULL == pOpenmaxBaseType || NULL == pOpenmaxAOType)
+    {
+        return OMX_ErrorBadParameter;
+    }
+
+	if(nPortIndex == OMX_PORT_INPUTPORT_INDEX)
+	{
+		Status = pOpenmaxBaseType->FreeBuffer(hComponent, nPortIndex, pBuffer);
+	}
+	else if(nPortIndex == OMX_PORT_OUTPUTPORT_INDEX)
+	{
+		Status = pOpenmaxAOType->FreeBuffer(hComponent, nPortIndex, pBuffer);
+	}
+
+    return Status;
+}
+
+OMX_ERRORTYPE OpenmaxMpeg4AO::FreeBuffer(
+    OMX_IN  OMX_HANDLETYPE hComponent,
+    OMX_IN  OMX_U32 nPortIndex,
+    OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer)
+{
+    PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : FreeBuffer IN"));
+
+    ComponentPortType* pBaseComponentPort;
+    OMX_ERRORTYPE Status;
+
+    OMX_U32 ii;
+    OMX_BOOL FoundBuffer;
+
+    if (nPortIndex >= iNumPorts)
+    {
+        PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : FreeBuffer error bad port index"));
+        return OMX_ErrorBadPortIndex;
+    }
+
+    pBaseComponentPort = ipPorts[nPortIndex];
+
+    if (pBaseComponentPort->TransientState != OMX_StateLoaded
+            && pBaseComponentPort->TransientState != OMX_StateInvalid)
+    {
+
+        (*(ipCallbacks->EventHandler))
+        (hComponent,
+         iCallbackData,
+         OMX_EventError, /* The command was completed */
+         OMX_ErrorPortUnpopulated, /* The commands was a OMX_CommandStateSet */
+         nPortIndex, /* The State has been changed in message->MessageParam2 */
+         NULL);
+    }
+
+    for (ii = 0; ii < pBaseComponentPort->PortParam.nBufferCountActual; ii++)
+    {
+        if ((pBaseComponentPort->BufferState[ii] & BUFFER_ALLOCATED) &&
+                (pBaseComponentPort->pBuffer[ii]->pBuffer == pBuffer->pBuffer))
+        {
+            pBaseComponentPort->NumAssignedBuffers--;
+            //oscl_free(pBuffer->pBuffer);	// MFC controls free of output buffer
+            pBuffer->pBuffer = NULL;
+
+            if (pBaseComponentPort->BufferState[ii] & HEADER_ALLOCATED)
+            {
+                oscl_free(pBuffer);
+                pBuffer = NULL;
+            }
+            pBaseComponentPort->BufferState[ii] = BUFFER_FREE;
+            break;
+        }
+        else if ((pBaseComponentPort->BufferState[ii] & BUFFER_ASSIGNED) &&
+                 (pBaseComponentPort->pBuffer[ii] == pBuffer))
+        {
+            pBaseComponentPort->NumAssignedBuffers--;
+
+            if (pBaseComponentPort->BufferState[ii] & HEADER_ALLOCATED)
+            {
+                oscl_free(pBuffer);
+                pBuffer = NULL;
+            }
+
+            pBaseComponentPort->BufferState[ii] = BUFFER_FREE;
+            break;
+        }
+	}
+	
+    FoundBuffer = OMX_FALSE;
+
+    for (ii = 0; ii < pBaseComponentPort->PortParam.nBufferCountActual; ii++)
+    {
+        if (pBaseComponentPort->BufferState[ii] != BUFFER_FREE)
+        {
+            FoundBuffer = OMX_TRUE;
+            break;
+        }
+    }
+    if (!FoundBuffer)
+    {
+        pBaseComponentPort->PortParam.bPopulated = OMX_FALSE;
+
+        if (OMX_TRUE == iStateTransitionFlag)
+        {
+            //Reschedule the AO for a state change (Idle->Loaded) if its pending on buffer de-allocation
+            RunIfNotReady();
+            iStateTransitionFlag = OMX_FALSE;
+
+            //Reset the decoding flags while freeing buffers
+            if (OMX_PORT_INPUTPORT_INDEX == nPortIndex)
+            {
+                iIsInputBufferEnded = OMX_TRUE;
+                iTempInputBufferLength = 0;
+                iTempConsumedLength = 0;
+                iNewInBufferRequired = OMX_TRUE;
+            }
+            else if (OMX_PORT_OUTPUTPORT_INDEX == nPortIndex)
+            {
+                iNewOutBufRequired = OMX_TRUE;
+            }
+        }
+
+        if (NULL != pBaseComponentPort->pBuffer)
+        {
+            oscl_free(pBaseComponentPort->pBuffer);
+            pBaseComponentPort->pBuffer = NULL;
+            oscl_free(pBaseComponentPort->BufferState);
+            pBaseComponentPort->BufferState = NULL;
+        }
+    }
+
+    PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : FreeBuffer OUT"));
+    return OMX_ErrorNone;
+}
 
 /* This function will be called in case of buffer management without marker bit present
  * The purpose is to copy the current input buffer into a big temporary buffer, so that
@@ -494,6 +772,7 @@ void OpenmaxMpeg4AO::ComponentBufferMgmtWithoutMarker()
 void OpenmaxMpeg4AO::ProcessData()
 {
     PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : ProcessData IN"));
+
     if (!iEndOfFrameFlag)
     {
         DecodeWithoutMarker();
@@ -511,22 +790,22 @@ void OpenmaxMpeg4AO::DecodeWithoutMarker()
 {
     PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : DecodeWithoutMarker IN"));
 
-    QueueType* pInputQueue = ipPorts[OMX_PORT_INPUTPORT_INDEX]->pBufferQueue;
+    QueueType* pInputQueue  = ipPorts[OMX_PORT_INPUTPORT_INDEX]->pBufferQueue;
     QueueType* pOutputQueue = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->pBufferQueue;
-    ComponentPortType*  pOutPort = ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
-    OMX_COMPONENTTYPE  *pHandle = &iOmxComponent;
+    ComponentPortType*	pOutPort = ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
+    OMX_COMPONENTTYPE  *pHandle  = &iOmxComponent;
 
-    OMX_U8*                 pOutBuffer;
-    OMX_U32                 OutputLength;
-    OMX_U8*                 pTempInBuffer;
-    OMX_U32                 TempInLength;
-    OMX_BOOL                DecodeReturn;
-    OMX_BOOL                MarkerFlag = OMX_FALSE;
-    OMX_BOOL                ResizeNeeded = OMX_FALSE;
+    OMX_U8*				pOutBuffer;
+    OMX_U32				OutputLength;
+    OMX_U8*				pTempInBuffer;
+    OMX_U32				TempInLength;
+    OMX_BOOL			DecodeReturn;
+    OMX_BOOL			MarkerFlag = OMX_FALSE;
+    OMX_BOOL			ResizeNeeded = OMX_FALSE;
 
     OMX_U32 TempInputBufferSize = (2 * sizeof(uint8) * (ipPorts[OMX_PORT_INPUTPORT_INDEX]->PortParam.nBufferSize));
 
-    OMX_U32 CurrWidth =  ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameWidth;
+    OMX_U32 CurrWidth  = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameWidth;
     OMX_U32 CurrHeight = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameHeight;
 
     if ((!iIsInputBufferEnded) || iEndofStream)
@@ -553,7 +832,7 @@ void OpenmaxMpeg4AO::DecodeWithoutMarker()
         }
 
         //Do not proceed if the output buffer can't fit the YUV data
-        if ((ipOutputBuffer->nAllocLen < (OMX_U32)((((CurrWidth + 15) >> 4) << 4) *(((CurrHeight + 15) >> 4) << 4) * 3 / 2)) && (OMX_TRUE == ipMpegDecoderObject->Mpeg4InitCompleteFlag))
+        if (ipOutputBuffer->nAllocLen < (OMX_U32)((((CurrWidth + 15) >> 4) << 4) * (((CurrHeight + 15) >> 4) << 4) * 3 / 2))
         {
             ipOutputBuffer->nFilledLen = 0;
             ReturnOutputBuffer(ipOutputBuffer, pOutPort);
@@ -562,7 +841,6 @@ void OpenmaxMpeg4AO::DecodeWithoutMarker()
         }
 
         ipOutputBuffer->nFilledLen = 0;
-
 
         /* Code for the marking buffer. Takes care of the OMX_CommandMarkBuffer
          * command and hMarkTargetComponent as given by the specifications
@@ -598,43 +876,29 @@ void OpenmaxMpeg4AO::DecodeWithoutMarker()
         TempInLength = iTempInputBufferLength;
 
         //Output buffer is passed as a short pointer
-        DecodeReturn = ipMpegDecoderObject->Mp4DecodeVideo(pOutBuffer, (OMX_U32*) & OutputLength,
-                       &(pTempInBuffer),
-                       &TempInLength,
-                       &(ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam),
-                       &iFrameCount,
-                       MarkerFlag,
-                       &ResizeNeeded);
+		DecodeReturn = ipMpegDecoderObject->Mp4DecodeVideo(
+						&pOutBuffer,    &OutputLength, &ipOutputBuffer->nTimeStamp,
+						&pTempInBuffer, &TempInLength, &iFrameTimestamp,
+						&(ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam),
+						&iFrameCount,
+						MarkerFlag,
+						&ResizeNeeded);
 
+		ipOutputBuffer->pBuffer    = pOutBuffer;
         ipOutputBuffer->nFilledLen = OutputLength;
-
-        //offset not required in our case, set it to zero
-        ipOutputBuffer->nOffset = 0;
-
+		ipOutputBuffer->nOffset    = 0;
+	
         //If decoder returned error, report it to the client via a callback
-        if (!DecodeReturn && OMX_FALSE == ipMpegDecoderObject->Mpeg4InitCompleteFlag)
+        if (!DecodeReturn && OMX_FALSE == iEndofStream)
         {
-            // initialization error, stop playback
-            PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : DecodeWithoutMarker ErrorBadParameter callback send"));
-
-            (*(ipCallbacks->EventHandler))
-            (pHandle,
-             iCallbackData,
-             OMX_EventError,
-             OMX_ErrorBadParameter,
-             0,
-             NULL);
-        }
-        else if (!DecodeReturn && OMX_FALSE == iEndofStream)
-        {
-            // decoding error
             PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : DecodeWithoutMarker ErrorStreamCorrupt callback send"));
 
+			// yj: change OMX_ErrorStreamCorrupt to OMX_ErrorUnsupportedSetting
             (*(ipCallbacks->EventHandler))
             (pHandle,
              iCallbackData,
              OMX_EventError,
-             OMX_ErrorStreamCorrupt,
+             OMX_ErrorUnsupportedSetting,
              0,
              NULL);
         }
@@ -646,7 +910,7 @@ void OpenmaxMpeg4AO::DecodeWithoutMarker()
             OMX_COMPONENTTYPE* pHandle = (OMX_COMPONENTTYPE*) ipAppPriv->CompHandle;
 
             // set the flag to disable further processing until Client reacts to this
-            //  by doing dynamic port reconfiguration
+            //	by doing dynamic port reconfiguration
             iResizePending = OMX_TRUE;
 
             (*(ipCallbacks->EventHandler))
@@ -706,11 +970,15 @@ void OpenmaxMpeg4AO::DecodeWithoutMarker()
         ReturnOutputBuffer(ipOutputBuffer, pOutPort);
         ipOutputBuffer = NULL;
 
+
         /* If there is some more processing left with current buffers, re-schedule the AO
          * Do not go for more than one round of processing at a time.
          * This may block the AO longer than required.
          */
-        if ((TempInLength != 0 || GetQueueNumElem(pInputQueue) > 0) && (GetQueueNumElem(pOutputQueue) > 0) && (ResizeNeeded == OMX_FALSE))
+        // 2.03 sw
+        if ((TempInLength != 0 || GetQueueNumElem(pInputQueue) > 0)	&& (GetQueueNumElem(pOutputQueue) > 0) && (ResizeNeeded == OMX_FALSE))
+        //if ((ResizeNeeded == OMX_FALSE) && ((TempInLength != 0) || (GetQueueNumElem(pInputQueue) > 0))
+        //        && ((GetQueueNumElem(pOutputQueue) > 0) || (OMX_FALSE == iNewOutBufRequired)))
         {
             RunIfNotReady();
         }
@@ -728,15 +996,15 @@ void OpenmaxMpeg4AO::DecodeWithMarker()
     QueueType* pInputQueue = ipPorts[OMX_PORT_INPUTPORT_INDEX]->pBufferQueue;
     QueueType* pOutputQueue = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->pBufferQueue;
 
-    ComponentPortType*  pInPort = ipPorts[OMX_PORT_INPUTPORT_INDEX];
-    ComponentPortType*  pOutPort = ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
+    ComponentPortType*	pInPort = ipPorts[OMX_PORT_INPUTPORT_INDEX];
+    ComponentPortType*	pOutPort = ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
 
-    OMX_U8*                 pOutBuffer;
-    OMX_U32                 OutputLength;
-    OMX_BOOL                DecodeReturn = OMX_FALSE;
-    OMX_BOOL                MarkerFlag = OMX_TRUE;
-    OMX_COMPONENTTYPE *     pHandle = &iOmxComponent;
-    OMX_BOOL                ResizeNeeded = OMX_FALSE;
+    OMX_U8*					pOutBuffer;
+    OMX_U32					OutputLength;
+    OMX_BOOL				DecodeReturn = OMX_FALSE;
+    OMX_BOOL				MarkerFlag = OMX_TRUE;
+    OMX_COMPONENTTYPE *		pHandle = &iOmxComponent;
+    OMX_BOOL				ResizeNeeded = OMX_FALSE;
 
     OMX_U32 CurrWidth =  ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameWidth;
     OMX_U32 CurrHeight = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.nFrameHeight;
@@ -760,13 +1028,14 @@ void OpenmaxMpeg4AO::DecodeWithMarker()
         }
 
         //Do not proceed if the output buffer can't fit the YUV data
-        if ((ipOutputBuffer->nAllocLen < (OMX_U32)((((CurrWidth + 15) >> 4) << 4) *(((CurrHeight + 15) >> 4) << 4) * 3 / 2)) && (OMX_TRUE == ipMpegDecoderObject->Mpeg4InitCompleteFlag))
+        if (ipOutputBuffer->nAllocLen < (OMX_U32)((((CurrWidth + 15) >> 4) << 4) * (((CurrHeight + 15) >> 4) << 4) * 3 / 2))
         {
             ipOutputBuffer->nFilledLen = 0;
             ReturnOutputBuffer(ipOutputBuffer, pOutPort);
             ipOutputBuffer = NULL;
             return;
         }
+
         ipOutputBuffer->nFilledLen = 0;
 
         /* Code for the marking buffer. Takes care of the OMX_CommandMarkBuffer
@@ -794,42 +1063,29 @@ void OpenmaxMpeg4AO::DecodeWithMarker()
             OutputLength = 0;
 
             //Output buffer is passed as a short pointer
-            DecodeReturn = ipMpegDecoderObject->Mp4DecodeVideo(pOutBuffer, (OMX_U32*) & OutputLength,
-                           &(ipFrameDecodeBuffer),
-                           &(iInputCurrLength),
+            DecodeReturn = ipMpegDecoderObject->Mp4DecodeVideo(
+			               &pOutBuffer, &OutputLength, &ipOutputBuffer->nTimeStamp,
+			               &(ipFrameDecodeBuffer), &(iInputCurrLength), &iFrameTimestamp,
                            &(ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam),
                            &iFrameCount,
                            MarkerFlag,
                            &ResizeNeeded);
 
+			ipOutputBuffer->pBuffer	  = pOutBuffer;	
             ipOutputBuffer->nFilledLen = OutputLength;
-            //offset not required in our case, set it to zero
-            ipOutputBuffer->nOffset = 0;
+			ipOutputBuffer->nOffset    = 0;
 
             //If decoder returned error, report it to the client via a callback
-            if (!DecodeReturn && OMX_FALSE == ipMpegDecoderObject->Mpeg4InitCompleteFlag)
+            if (!DecodeReturn && OMX_FALSE == iEndofStream)
             {
-                // initialization error, stop playback
-                PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : DecodeWithoutMarker ErrorBadParameter callback send"));
-
-                (*(ipCallbacks->EventHandler))
-                (pHandle,
-                 iCallbackData,
-                 OMX_EventError,
-                 OMX_ErrorBadParameter,
-                 0,
-                 NULL);
-            }
-            else if (!DecodeReturn && OMX_FALSE == iEndofStream)
-            {
-                // decode error
                 PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OpenmaxMpeg4AO : DecodeWithMarker ErrorStreamCorrupt callback send"));
 
+				// yj: change OMX_ErrorStreamCorrupt to OMX_ErrorUnsupportedSetting
                 (*(ipCallbacks->EventHandler))
                 (pHandle,
                  iCallbackData,
                  OMX_EventError,
-                 OMX_ErrorStreamCorrupt,
+                 OMX_ErrorUnsupportedSetting,
                  0,
                  NULL);
             }
@@ -885,7 +1141,6 @@ void OpenmaxMpeg4AO::DecodeWithMarker()
             iIsInputBufferEnded = OMX_TRUE;
             iUseExtTimestamp = OMX_TRUE;
         }
-
 
 
 
@@ -1002,27 +1257,17 @@ OMX_ERRORTYPE OpenmaxMpeg4AO::ComponentInit()
 
     if (!iCodecReady)
     {
-        //Call the init routine here in case of H263 mode, without waiting for buffers
+		if(iDecMode == MODE_MPEG4)
+			ipMpegDecoderObject->SetCodecType(Mpeg4Decoder_OMX::MFC_CODEC_MP4D);
+		else if(iDecMode == MODE_H263)
+			ipMpegDecoderObject->SetCodecType(Mpeg4Decoder_OMX::MFC_CODEC_H263D);
+		else
+		{
+			LOGE("No Matched iDecMode(%d) \n", (int)iDecMode);
+			return OMX_ErrorUndefined;
+		}
 
-        if (iDecMode == MODE_H263)
-        {
-            OMX_S32 Width, Height, Size = 0;
-            OMX_U8* Buff = NULL;
-
-            //Pass dummy pointers during initializations
-            if (OMX_TRUE != ipMpegDecoderObject->InitializeVideoDecode(&Width, &Height, &Buff, &Size, iDecMode))
-            {
-                Status = OMX_ErrorInsufficientResources;
-            }
-
-            ipMpegDecoderObject->Mpeg4InitCompleteFlag = OMX_TRUE;
-        }
-        else
-        {
-            //mp4 lib init
-            Status = ipMpegDecoderObject->Mp4DecInit();
-        }
-
+		Status = ipMpegDecoderObject->Mp4DecInit();
         iCodecReady = OMX_TRUE;
     }
 
@@ -1126,7 +1371,7 @@ OMX_BOOL OpenmaxMpeg4AO::DecodeH263Header(OMX_U8* aInputBuffer,
         OMX_U32* aBufferSize)
 {
     uint32 codeword;
-    int32   extended_PTYPE = 0;
+    int32	extended_PTYPE = 0;
     int32 UFEP = 0;
     int32 custom_PFMT = 0;
 
@@ -1246,7 +1491,7 @@ OMX_BOOL OpenmaxMpeg4AO::DecodeH263Header(OMX_U8* aInputBuffer,
         if (codeword) return OMX_FALSE;
         ReadBits(aInputBuffer, 3, &codeword);
         ReadBits(aInputBuffer, 3, &codeword);
-        if (codeword) return OMX_FALSE;             /* RPS, ISD, AIV */
+        if (codeword) return OMX_FALSE; 			/* RPS, ISD, AIV */
         ReadBits(aInputBuffer, 1, &codeword);
         ReadBits(aInputBuffer, 4, &codeword);
         if (codeword != 8) return OMX_FALSE;
@@ -1295,19 +1540,19 @@ OMX_BOOL OpenmaxMpeg4AO::DecodeH263Header(OMX_U8* aInputBuffer,
 
         Resolution = Width * Height;
 
-        if (Resolution <= 25344)        //25344 = 176x144 (QCIF)
+        if (Resolution <= 25344)		//25344 = 176x144 (QCIF)
         {
             *aBufferSize = 32000;
         }
-        else if (Resolution <= 101376)  //101376 = 352x288 (CIF)
+        else if (Resolution <= 101376)	//101376 = 352x288 (CIF)
         {
             *aBufferSize = 128000;
         }
-        else if (Resolution <= 405504)  //405504 = 704*576 (4CIF)
+        else if (Resolution <= 405504)	//405504 = 704*576 (4CIF)
         {
             *aBufferSize = 256000;
         }
-        else                            //1408x1152 (16CIF)
+        else							//1408x1152 (16CIF)
         {
             //This is the max buffer size that we want to allocate
             *aBufferSize = 512000;
@@ -1318,9 +1563,9 @@ OMX_BOOL OpenmaxMpeg4AO::DecodeH263Header(OMX_U8* aInputBuffer,
 }
 
 
-void OpenmaxMpeg4AO::ReadBits(OMX_U8* aStream,           /* Input Stream */
-                              uint8 aNumBits,                     /* nr of bits to read */
-                              uint32* aOutData                 /* output target */
+void OpenmaxMpeg4AO::ReadBits(OMX_U8* aStream,		/* Input Stream */
+                              uint8 aNumBits,       /* nr of bits to read */
+                              uint32* aOutData      /* output target */
                              )
 {
     uint8 *bits;
@@ -1328,10 +1573,10 @@ void OpenmaxMpeg4AO::ReadBits(OMX_U8* aStream,           /* Input Stream */
     uint32 bitPos = iH263BitPos;
     uint32 dataBytePos;
 
-    if (aNumBits > (32 - bitPos))    /* not enough bits */
+    if (aNumBits > (32 - bitPos))    	/* not enough bits */
     {
-        dataBytePos = dataBitPos >> 3;    /* Byte Aligned Position */
-        bitPos = dataBitPos & 7; /* update bit position */
+        dataBytePos = dataBitPos >> 3;  /* Byte Aligned Position */
+        bitPos = dataBitPos & 7; 		/* update bit position */
         bits = &aStream[dataBytePos];
         iH263BitBuf = (bits[0] << 24) | (bits[1] << 16) | (bits[2] << 8) | bits[3];
     }

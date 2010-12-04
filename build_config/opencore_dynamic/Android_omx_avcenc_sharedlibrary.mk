@@ -3,7 +3,7 @@ include $(CLEAR_VARS)
 
 LOCAL_WHOLE_STATIC_LIBRARIES := \
 	libomx_avcenc_component_lib \
- 	libpvavch264enc
+	libmfcencapi
 
 LOCAL_MODULE := libomx_avcenc_sharedlibrary
 

@@ -38,7 +38,9 @@ typedef struct
 } pvVideoConfigParserOutputs;
 
 OSCL_IMPORT_REF int16 pv_video_config_parser(pvVideoConfigParserInputs *aInputs, pvVideoConfigParserOutputs *aOutputs);
-
+/* Mobile Media Lab. Start */
+int32 GetNAL_Config(uint8** bitstream, int32* size);
+/* Mobile Media Lab. End */
 
 #endif //PV_VIDEO_CONFIG_PARSER_H_INCLUDED
 

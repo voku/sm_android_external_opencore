@@ -149,6 +149,11 @@ typedef OSCL_String PvmfMimeString;
 #define PVMF_MIME_AVIFF         "x-pvmf/mux/avi"
 #define PVMF_MIME_DATA_PVRFF    "video/x-pvmf-pvr "
 
+/* Mobile Media Lab. Start */
+#define PVMF_MIME_AVI			"video/avi"
+#define PVMF_MIME_DIVX			"video/divx"
+/* Mobile Media Lab. End */
+
 // MIME strings for RAW data formats
 #define PVMF_MIME_8BIT_RAW   "X-RAW-8"
 

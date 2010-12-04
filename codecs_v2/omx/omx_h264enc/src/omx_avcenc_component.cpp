@@ -22,14 +22,16 @@
 #include "omx_proxy_interface.h"
 #endif
 
+// --> opencore ver.2.0.3
 const uint8 NAL_START_CODE[4] = {0, 0, 0, 1};
 
 #define CONFIG_SIZE_AND_VERSION(param) \
-        param.nSize=sizeof(param); \
-        param.nVersion.s.nVersionMajor = SPECVERSIONMAJOR; \
-        param.nVersion.s.nVersionMinor = SPECVERSIONMINOR; \
-        param.nVersion.s.nRevision = SPECREVISION; \
-        param.nVersion.s.nStep = SPECSTEP;
+	    param.nSize=sizeof(param); \
+	    param.nVersion.s.nVersionMajor = SPECVERSIONMAJOR; \
+	    param.nVersion.s.nVersionMinor = SPECVERSIONMINOR; \
+	    param.nVersion.s.nRevision = SPECREVISION; \
+	    param.nVersion.s.nStep = SPECSTEP;
+// <-- opencore ver.2.0.3
 
 // This function is called by OMX_GetHandle and it creates an instance of the avc component AO
 OMX_ERRORTYPE AvcEncOmxComponentFactory(OMX_OUT OMX_HANDLETYPE* pHandle, OMX_IN OMX_PTR pAppData, OMX_PTR pProxy, OMX_STRING aOmxLibName, OMX_PTR &aOmxLib, OMX_PTR aOsclUuid, OMX_U32 &aRefCount)
@@ -83,10 +85,16 @@ OMX_ERRORTYPE AvcEncOmxComponentDestructor(OMX_IN OMX_HANDLETYPE pHandle, OMX_PT
 #if DYNAMIC_LOAD_OMX_AVCENC_COMPONENT
 
 class AvcEncOmxSharedLibraryInterface: public OsclSharedLibraryInterface,
-        public OmxSharedLibraryInterface
+            public OmxSharedLibraryInterface
 
 {
     public:
+        static AvcEncOmxSharedLibraryInterface *Instance()
+        {
+            static AvcEncOmxSharedLibraryInterface omxinterface;
+            return &omxinterface;
+        };
+
         OsclAny *QueryOmxComponentInterface(const OsclUuid& aOmxTypeId, const OsclUuid& aInterfaceId)
         {
             if (PV_OMX_AVCENC_UUID == aOmxTypeId)
@@ -112,6 +120,7 @@ class AvcEncOmxSharedLibraryInterface: public OsclSharedLibraryInterface,
             return NULL;
         };
 
+    private:
         AvcEncOmxSharedLibraryInterface() {};
 };
 
@@ -120,13 +129,7 @@ extern "C"
 {
     OSCL_EXPORT_REF OsclAny* PVGetInterface()
     {
-        return (OsclAny*) OSCL_NEW(AvcEncOmxSharedLibraryInterface, ());
-    }
-
-    OSCL_EXPORT_REF void PVReleaseInterface(OsclSharedLibraryInterface* aInstance)
-    {
-        AvcEncOmxSharedLibraryInterface* module = (AvcEncOmxSharedLibraryInterface*)aInstance;
-        OSCL_DELETE(module);
+        return AvcEncOmxSharedLibraryInterface::Instance();
     }
 }
 
@@ -145,10 +148,12 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
     ipComponentProxy = pProxy;
     iOmxComponent.pApplicationPrivate = pAppData; // init the App data
 
+// --> opencore ver.2.0.3
     oscl_memset((void *)iNALSizeArray, 0, MAX_NAL_PER_FRAME * sizeof(int32));
     iNALCount = 0;
     iNALSizeSum = 0;
     iEndOfOutputFrame = OMX_FALSE;
+// <-- opencore ver.2.0.3
 
 #if PROXY_INTERFACE
     iPVCapabilityFlags.iIsOMXComponentMultiThreaded = OMX_TRUE;
@@ -190,6 +195,14 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
     iOmxComponent.nVersion.s.nStep = SPECSTEP;
 
     // PV capability
+#if 0 // opencore ver. 2.0
+    iPVCapabilityFlags.iOMXComponentSupportsExternalInputBufferAlloc = OMX_TRUE;
+    iPVCapabilityFlags.iOMXComponentSupportsExternalOutputBufferAlloc = OMX_TRUE;
+    iPVCapabilityFlags.iOMXComponentSupportsMovableInputBuffers = OMX_TRUE;
+    iPVCapabilityFlags.iOMXComponentSupportsPartialFrames = OMX_TRUE;
+    iPVCapabilityFlags.iOMXComponentNeedsNALStartCode = OMX_FALSE;
+    iPVCapabilityFlags.iOMXComponentCanHandleIncompleteFrames = OMX_TRUE;
+#else // --> opencore ver. 2.03
 #if defined(TEST_FULL_AVC_FRAME_MODE)
     /* output buffers based on frame boundaries instead of NAL boundaries and specify NAL boundaries through
      * through OMX_EXTRADATA structures appended on the end of the buffer
@@ -221,6 +234,7 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
     iPVCapabilityFlags.iOMXComponentCanHandleIncompleteFrames = OMX_TRUE;
     iPVCapabilityFlags.iOMXComponentUsesFullAVCFrames = OMX_FALSE;
 #endif
+#endif // <-- opencore ver. 2.03
 
     if (ipAppPriv)
     {
@@ -243,6 +257,7 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
     }
 
     /** Domain specific section for input raw port */ //OMX_PARAM_PORTDEFINITIONTYPE
+// added 1 line : opencore ver. 2.03
     ipPorts[OMX_PORT_INPUTPORT_INDEX]->PortParam.nPortIndex = OMX_PORT_INPUTPORT_INDEX;
     ipPorts[OMX_PORT_INPUTPORT_INDEX]->PortParam.eDomain = OMX_PortDomainVideo;
     ipPorts[OMX_PORT_INPUTPORT_INDEX]->PortParam.format.video.cMIMEType = (OMX_STRING)"raw";
@@ -265,6 +280,7 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
 
 
     /** Domain specific section for output avc port */
+// added 1 line : opencore ver. 2.03
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.nPortIndex = OMX_PORT_OUTPUTPORT_INDEX;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.eDomain = OMX_PortDomainVideo;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.format.video.cMIMEType = (OMX_STRING)"video/avc";
@@ -285,20 +301,20 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->PortParam.bPopulated = OMX_FALSE;
 
 
-    //OMX_VIDEO_PARAM_AVCTYPE   //Default values for avc video output param port
+    //OMX_VIDEO_PARAM_AVCTYPE	//Default values for avc video output param port
     oscl_memset(&ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc, 0, sizeof(OMX_VIDEO_PARAM_AVCTYPE));
     SetHeader(&ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc, sizeof(OMX_VIDEO_PARAM_AVCTYPE));
 
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.nPortIndex = OMX_PORT_OUTPUTPORT_INDEX;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.eProfile = OMX_VIDEO_AVCProfileBaseline;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.eLevel = OMX_VIDEO_AVCLevel1b;
-    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.nPFrames = 0xFFFFFFFF; //Default value
-    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.nBFrames = 0;      //No support for B frames
+    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.nPFrames = 0xFFFFFFFF;	//Default value
+    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.nBFrames = 0;		//No support for B frames
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.nAllowedPictureTypes = OMX_VIDEO_PictureTypeI | OMX_VIDEO_PictureTypeP;
 
-    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.nRefFrames = 1;    //Only support this value
+    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.nRefFrames = 1;	//Only support this value
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.eLoopFilterMode = OMX_VIDEO_AVCLoopFilterEnable;
-    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.bEnableFMO = OMX_FALSE;    //Default value is false
+    ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.bEnableFMO = OMX_FALSE;	//Default value is false
 
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.bFrameMBsOnly = OMX_TRUE;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->VideoAvc.bMBAFF = OMX_FALSE;
@@ -308,6 +324,7 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
 
 
     //OMX_VIDEO_PARAM_PROFILELEVELTYPE structure
+// added 1 line : opencore ver. 2.03
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->ProfileLevel.nPortIndex = OMX_PORT_OUTPUTPORT_INDEX;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->ProfileLevel.nProfileIndex = 0;
     ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->ProfileLevel.eProfile = OMX_VIDEO_AVCProfileBaseline;
@@ -401,16 +418,16 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
     //OMX_VIDEO_PARAM_QUANTIZATIONTYPE settings of output port
     SetHeader(&pOutPort->VideoQuantType, sizeof(OMX_VIDEO_PARAM_QUANTIZATIONTYPE));
     pOutPort->VideoQuantType.nPortIndex = OMX_PORT_OUTPUTPORT_INDEX;
-    pOutPort->VideoQuantType.nQpI = 0;  //Not required by encoder
-    pOutPort->VideoQuantType.nQpP = 0;  //Default is 0
-    pOutPort->VideoQuantType.nQpB = 0;  //Not required by encoder
+    pOutPort->VideoQuantType.nQpI = 0;	//Not required by encoder
+    pOutPort->VideoQuantType.nQpP = 0;	//Default is 0
+    pOutPort->VideoQuantType.nQpB = 0;	//Not required by encoder
 
 
     //OMX_VIDEO_PARAM_VBSMCTYPE settings of output port
     oscl_memset(&pOutPort->VideoBlockMotionSize, 0, sizeof(OMX_VIDEO_PARAM_VBSMCTYPE));
     SetHeader(&pOutPort->VideoBlockMotionSize, sizeof(OMX_VIDEO_PARAM_VBSMCTYPE));
     pOutPort->VideoBlockMotionSize.nPortIndex = OMX_PORT_OUTPUTPORT_INDEX;
-    pOutPort->VideoBlockMotionSize.b16x16 = OMX_TRUE;       //Encoder only support this mode
+    pOutPort->VideoBlockMotionSize.b16x16 = OMX_TRUE;		//Encoder only support this mode
 
 
     //OMX_VIDEO_PARAM_MOTIONVECTORTYPE settings of output port
@@ -418,7 +435,7 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
     SetHeader(&pOutPort->VideoMotionVector, sizeof(OMX_VIDEO_PARAM_MOTIONVECTORTYPE));
     pOutPort->VideoMotionVector.nPortIndex = OMX_PORT_OUTPUTPORT_INDEX;
     pOutPort->VideoMotionVector.eAccuracy = OMX_Video_MotionVectorQuarterPel;
-    pOutPort->VideoMotionVector.bUnrestrictedMVs = OMX_TRUE;        //Only support true
+    pOutPort->VideoMotionVector.bUnrestrictedMVs = OMX_TRUE;		//Only support true
     pOutPort->VideoMotionVector.sXSearchRange = 16;
     pOutPort->VideoMotionVector.sYSearchRange = 16;
 
@@ -436,7 +453,7 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
     pOutPort->AvcSliceFMO.nPortIndex = OMX_PORT_OUTPUTPORT_INDEX;
     pOutPort->AvcSliceFMO.eSliceMode = OMX_VIDEO_SLICEMODE_AVCDefault;
     pOutPort->AvcSliceFMO.nNumSliceGroups = 1;
-    pOutPort->AvcSliceFMO.nSliceGroupMapType = 1;           //Only support map type of 1
+    pOutPort->AvcSliceFMO.nSliceGroupMapType = 1;			//Only support map type of 1
 
 
     //OMX_CONFIG_INTRAREFRESHVOPTYPE settings of output port
@@ -444,8 +461,6 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
     SetHeader(&pOutPort->VideoIFrame, sizeof(OMX_CONFIG_INTRAREFRESHVOPTYPE));
     pOutPort->VideoIFrame.nPortIndex = OMX_PORT_OUTPUTPORT_INDEX;
     pOutPort->VideoIFrame.IntraRefreshVOP = OMX_FALSE;
-
-    oscl_strncpy((OMX_STRING)iComponentRole, (OMX_STRING)"video_encoder.avc", OMX_MAX_STRINGNAME_SIZE);
 
 
     //Construct the encoder object
@@ -456,6 +471,11 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
     }
 
     ipAvcEncoderObject = OSCL_NEW(AvcEncoder_OMX, ());
+    // added by RainAde : for error check
+    if (NULL == ipAvcEncoderObject)
+    {
+        return OMX_ErrorInsufficientResources;
+    }
 
 #if PROXY_INTERFACE
 
@@ -479,8 +499,8 @@ OMX_ERRORTYPE OmxComponentAvcEncAO::ConstructComponent(OMX_PTR pAppData, OMX_PTR
 
 
 /** This function is called by the omx core when the component
-    * is disposed by the IL client with a call to FreeHandle().
-    */
+	* is disposed by the IL client with a call to FreeHandle().
+	*/
 
 OMX_ERRORTYPE OmxComponentAvcEncAO::DestroyComponent()
 {
@@ -517,12 +537,16 @@ void OmxComponentAvcEncAO::ProcessData()
     QueueType* pInputQueue = ipPorts[OMX_PORT_INPUTPORT_INDEX]->pBufferQueue;
     QueueType* pOutputQueue = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->pBufferQueue;
 
-    ComponentPortType*  pInPort = ipPorts[OMX_PORT_INPUTPORT_INDEX];
+    ComponentPortType*	pInPort = ipPorts[OMX_PORT_INPUTPORT_INDEX];
+// removed 1 line : opencore ver. 2.03
+    //ComponentPortType*	pOutPort = ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
 
-    OMX_U8*                 pOutBuffer;
-    OMX_U32                 OutputLength;
-    AVCEnc_Status           EncodeReturn = AVCENC_SUCCESS;
-    OMX_COMPONENTTYPE*      pHandle = &iOmxComponent;
+    OMX_U8*					pOutBuffer;
+    OMX_U32					OutputLength;
+// changed 1 line : opencore 2.03 but not follow
+    OMX_BOOL 				EncodeReturn = OMX_TRUE;
+    //AVCEnc_Status			EncodeReturn = AVCENC_SUCCESS;
+    OMX_COMPONENTTYPE*		pHandle = &iOmxComponent;
 
     if ((!iIsInputBufferEnded) || (iEndofStream))
     {
@@ -538,16 +562,18 @@ void OmxComponentAvcEncAO::ProcessData()
             }
 
             ipOutputBuffer = (OMX_BUFFERHEADERTYPE*) DeQueue(pOutputQueue);
-
+// --> opencore ver. 2.03
             OSCL_ASSERT(NULL != ipOutputBuffer);
             if (ipOutputBuffer == NULL)
             {
                 PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_ERR, (0, "OmxComponentAvcEncAO : ProcessData ERR OUT output buffer cannot be dequeued"));
                 return;
             }
+// <-- opencore ver. 2.03
             ipOutputBuffer->nFilledLen = 0;
             iNewOutBufRequired = OMX_FALSE;
 
+// --> opencore ver. 2.03
             oscl_memset((void *)iNALSizeArray, 0, iNALCount * sizeof(int32));
             iNALCount = 0;
             iNALSizeSum = 0;
@@ -558,7 +584,7 @@ void OmxComponentAvcEncAO::ProcessData()
                 ipOutputBuffer->nFilledLen += 4;
                 iNALSizeSum += 4;
             }
-
+// <-- opencore ver. 2.03
 
             /* If some output data was left to be send from the last processing due to
              * unavailability of required number of output buffers,
@@ -573,7 +599,18 @@ void OmxComponentAvcEncAO::ProcessData()
                 }
                 else
                 {
+#if 0 // opoencore 2.0
+                    //Attach the end of frame flag while sending out the last piece of output buffer
+                    ipOutputBuffer->nFlags |= OMX_BUFFERFLAG_ENDOFFRAME;
+                    if (OMX_TRUE == iSyncFlag)
+                    {
+                        ipOutputBuffer->nFlags |= OMX_BUFFERFLAG_SYNCFRAME;
+                        iSyncFlag = OMX_FALSE;
+                    }
+                    ReturnOutputBuffer(ipOutputBuffer, pOutPort);
+#else // opencoe ver. 2.03
                     ManageFrameBoundaries();
+#endif
 
                     //Dequeue new output buffer to continue encoding the next frame
                     if (0 == (GetQueueNumElem(pOutputQueue)))
@@ -582,14 +619,14 @@ void OmxComponentAvcEncAO::ProcessData()
                         return;
                     }
                     ipOutputBuffer = (OMX_BUFFERHEADERTYPE*) DeQueue(pOutputQueue);
-
+// --> opencore ver. 2.03
                     OSCL_ASSERT(NULL != ipOutputBuffer);
                     if (ipOutputBuffer == NULL)
                     {
                         PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_ERR, (0, "OmxComponentAvcEncAO : ProcessData OUT ERR output buffer cannot be dequeued"));
                         return;
                     }
-
+// <-- opencore ver. 2.03
 
                     ipOutputBuffer->nFilledLen = 0;
                     iNewOutBufRequired = OMX_FALSE;
@@ -619,6 +656,10 @@ void OmxComponentAvcEncAO::ProcessData()
         //Call the encoder only if there is some data to encode
         if (iInputCurrLength > 0)
         {
+#if 0 // opencore ver. 2.0
+            pOutBuffer = ipOutputBuffer->pBuffer;
+            OutputLength = ipOutputBuffer->nAllocLen;
+#else // opencore ver. 2.03
             OMX_S32 filledLength = ipOutputBuffer->nOffset + ipOutputBuffer->nFilledLen;
             pOutBuffer = ipOutputBuffer->pBuffer + (OMX_U32)filledLength;
 
@@ -631,6 +672,7 @@ void OmxComponentAvcEncAO::ProcessData()
             {
                 OutputLength = (OMX_U32)(((OMX_S32)ipOutputBuffer->nAllocLen - filledLength) > 0) ? (ipOutputBuffer->nAllocLen - filledLength) : 0;
             }
+#endif
 
             //Output buffer is passed as a short pointer
             EncodeReturn = ipAvcEncoderObject->AvcEncodeVideo(pOutBuffer,
@@ -653,6 +695,8 @@ void OmxComponentAvcEncAO::ProcessData()
                 if (OMX_FALSE == iBufferOverRun)
                 {
                     //No internal buffer is maintained
+// changed 1 line : opencore ver. 2.03
+                    //ipOutputBuffer->nFilledLen = OutputLength;
                     ipOutputBuffer->nFilledLen += OutputLength;
                 }
                 else
@@ -661,12 +705,13 @@ void OmxComponentAvcEncAO::ProcessData()
                     iBufferOverRun = OMX_FALSE;
                     CopyDataToOutputBuffer();
 
-                }   //else loop of if (OMX_FALSE == iMantainOutInternalBuffer)
-            }   //if (OutputLength > 0)  loop
+                }	//else loop of if (OMX_FALSE == iMantainOutInternalBuffer)
+            }	//if (OutputLength > 0)	 loop
 
             //If encoder returned error in case of frame skip/corrupt frame, report it to the client via a callback
-            if (((AVCENC_SKIPPED_PICTURE == EncodeReturn) || (AVCENC_FAIL == EncodeReturn))
-                    && (OMX_FALSE == iEndofStream))
+// changed 1 line : opencore ver. 2.03 but not follow
+            if ((OMX_FALSE == EncodeReturn) && (OMX_FALSE == iEndofStream))
+            //if (((AVCENC_SKIPPED_PICTURE == EncodeReturn) || (AVCENC_FAIL == EncodeReturn)) && (OMX_FALSE == iEndofStream))
             {
                 PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OmxComponentAvcEncAO : Frame skipped, ProcessData ErrorStreamCorrupt callback send"));
 
@@ -680,6 +725,19 @@ void OmxComponentAvcEncAO::ProcessData()
             }
 
             //Return the input buffer that has been consumed fully
+#if 1 // opencoer ver. 2.0
+            if (0 == iInputCurrLength)
+            {
+                ipInputBuffer->nFilledLen = 0;
+                ReturnInputBuffer(ipInputBuffer, pInPort);
+                ipInputBuffer = NULL;
+
+                iIsInputBufferEnded = OMX_TRUE;
+                iInputCurrLength = 0;
+            }
+
+            iFrameCount++;
+#else // opencoer ver. 2.03 but not follow
             if ((AVCENC_PICTURE_READY == EncodeReturn) ||
                     (AVCENC_SKIPPED_PICTURE == EncodeReturn) ||
                     (AVCENC_FAIL == EncodeReturn))
@@ -698,6 +756,7 @@ void OmxComponentAvcEncAO::ProcessData()
             {
                 iEndOfOutputFrame = OMX_TRUE;
             }
+#endif
         }
 
 
@@ -706,8 +765,9 @@ void OmxComponentAvcEncAO::ProcessData()
          */
         if (OMX_TRUE == iEndofStream)
         {
-            if (((0 == iInputCurrLength) || (AVCENC_FAIL == EncodeReturn)) &&
-                    (0 == iInternalOutBufFilledLen))
+// changed l line : opencore ver. 2.03 but not follow
+            if (((0 == iInputCurrLength) || (OMX_FALSE == EncodeReturn)) && (0 == iInternalOutBufFilledLen))
+            //if (((0 == iInputCurrLength) || (AVCENC_FAIL == EncodeReturn)) && (0 == iInternalOutBufFilledLen))
             {
 
                 (*(ipCallbacks->EventHandler))
@@ -719,17 +779,41 @@ void OmxComponentAvcEncAO::ProcessData()
                  NULL);
                 PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OmxComponentAvcEncAO : ProcessData EOS callback sent"));
 
+// added l line : opencore ver. 2.03
                 ManageFrameBoundaries();
 
                 //Mark this flag false once the callback has been send back
                 iEndofStream = OMX_FALSE;
-
+// removed : opencoer ver. 2.03
+/* 
+                ipOutputBuffer->nFlags |= OMX_BUFFERFLAG_EOS;
+                if (OMX_TRUE == iSyncFlag)
+                {
+                    ipOutputBuffer->nFlags |= OMX_BUFFERFLAG_SYNCFRAME;
+                    iSyncFlag = OMX_FALSE;
+                }
+                ReturnOutputBuffer(ipOutputBuffer, pOutPort);
+*/
                 PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_NOTICE, (0, "OmxComponentAvcEncAO : ProcessData OUT"));
                 return;
             }
 
         }
 
+#if 0 // opencoer ver. 2.0
+        //Send the output buffer back after decode
+        if ((ipOutputBuffer->nFilledLen > 0) && (OMX_FALSE == iNewOutBufRequired))
+        {
+            //Attach the end of frame flag while sending out the last piece of output buffer
+            ipOutputBuffer->nFlags |= OMX_BUFFERFLAG_ENDOFFRAME;
+            if (OMX_TRUE == iSyncFlag)
+            {
+                ipOutputBuffer->nFlags |= OMX_BUFFERFLAG_SYNCFRAME;
+                iSyncFlag = OMX_FALSE;
+            }
+            ReturnOutputBuffer(ipOutputBuffer, pOutPort);
+        }
+#else // opencore ver. 2.03
         if (!iPVCapabilityFlags.iOMXComponentUsesNALStartCodes)
         {
             if (iEndOfOutputFrame || ((ipOutputBuffer->nFilledLen > 0) && (OMX_FALSE == iNewOutBufRequired)))
@@ -744,7 +828,7 @@ void OmxComponentAvcEncAO::ProcessData()
                 ManageFrameBoundaries();
             }
         }
-
+#endif
 
         /* If there is some more processing left with current buffers, re-schedule the AO
          * Do not go for more than one round of processing at a time.
@@ -763,7 +847,7 @@ void OmxComponentAvcEncAO::ProcessData()
 
 OMX_BOOL OmxComponentAvcEncAO::CopyDataToOutputBuffer()
 {
-    ComponentPortType*  pOutPort = ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
+    ComponentPortType*	pOutPort = ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
     QueueType* pOutputQueue = ipPorts[OMX_PORT_OUTPUTPORT_INDEX]->pBufferQueue;
 
     while (iInternalOutBufFilledLen > 0)
@@ -804,19 +888,21 @@ OMX_BOOL OmxComponentAvcEncAO::CopyDataToOutputBuffer()
 
             ipOutputBuffer = (OMX_BUFFERHEADERTYPE*) DeQueue(pOutputQueue);
 
+// --> opencore ver. 2.03
             OSCL_ASSERT(NULL != ipOutputBuffer);
             if (ipOutputBuffer == NULL)
             {
                 PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_ERR, (0, "OmxComponentAvcEncAO : CopyDatatoOutputBuffer ERR OUT output buffer cannot be dequeued"));
                 return OMX_FALSE;
             }
+// <-- opencore ver. 2.03
 
             ipOutputBuffer->nFilledLen = 0;
             ipOutputBuffer->nTimeStamp = iOutputTimeStamp;
             ipOutputBuffer->nOffset = 0;
             iNewOutBufRequired = OMX_FALSE;
         }
-    }   //while (iInternalOutBufFilledLen > 0)
+    }	//while (iInternalOutBufFilledLen > 0)
 
     return OMX_TRUE;
 
@@ -1080,6 +1166,7 @@ void OmxComponentAvcEncAO::ProcessInBufferFlag()
     iIsInputBufferEnded = OMX_FALSE;
 }
 
+// --> opencore ver. 2.03
 /////////////////////////////////////////////////////////////////////////////
 OMX_BOOL OmxComponentAvcEncAO::AppendExtraDataToBuffer(OMX_BUFFERHEADERTYPE* aOutputBuffer,
         OMX_EXTRADATATYPE aType,
@@ -1162,9 +1249,11 @@ void OmxComponentAvcEncAO::ManageFrameBoundaries()
     PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_NOTICE,
                     (0, "OmxComponentAvcEncAO::ManageFrameBoundaries() In"));
 
-    ComponentPortType*  pOutPort = ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
+    ComponentPortType*	pOutPort = ipPorts[OMX_PORT_OUTPUTPORT_INDEX];
 
-    if (!iPVCapabilityFlags.iOMXComponentUsesFullAVCFrames || !ipAvcEncoderObject->GetSpsPpsHeaderFlag())
+// removed by RainAde : MFC encoder doesn't retrun header flag. if it is needed, we should make that api.
+    //if (!iPVCapabilityFlags.iOMXComponentUsesFullAVCFrames || !ipAvcEncoderObject->GetSpsPpsHeaderFlag())
+    if (!iPVCapabilityFlags.iOMXComponentUsesFullAVCFrames)
     {
         if (iPVCapabilityFlags.iOMXComponentUsesNALStartCodes && ipOutputBuffer->nFilledLen == 4)
         {
@@ -1256,3 +1345,4 @@ void OmxComponentAvcEncAO::ManageFrameBoundaries()
                     (0, "OmxComponentAvcEncAO::ManageFrameBoundaries() Out"));
 }
 
+// <-- opencore ver. 2.03

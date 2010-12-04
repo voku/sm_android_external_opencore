@@ -180,10 +180,19 @@ const PVMFStatus PVMFErrRedirect = (-30);
  Error if a given method or API is not implemented. This is NOT the same as PVMFErrNotSupported.
 */
 const PVMFStatus PVMFErrNotImplemented = (-31);
+/* Mobile Media Lab. - Start */ 
+/*
+ DivX DRM Errors
+*/
+/* the device is not authorized. */
+const PVMFStatus PVMFErrDivXNotAuthorizedDevice = (-32);
+/* Rental count expired */
+const PVMFStatus PVMFErrDivXExpiredRentalCount = (-33);
+/* Mobile Media Lab. - End */ 
 /*
  Error: the video container is not valid for progressive playback.
  */
-const PVMFStatus PVMFErrContentInvalidForProgressivePlayback = (-32);
+const PVMFStatus PVMFErrContentInvalidForProgressivePlayback = (-34);
 /*
  Placeholder for last event in range.
  */
@@ -372,6 +381,18 @@ const PVMFStatus PVMFInfoShoutcastClipBitrate = 51;
  Notification for shoutcast session
  */
 const PVMFStatus PVMFInfoIsShoutcastSesssion = 52;
+/* Mobile Media Lab. Streaming - Start */ 
+/*
+ Notification for SDP diplay size info
+ */
+const PVMFStatus PVMFInfoSDPDisplaySize = 53;
+/* Mobile Media Lab. Streaming - End */ 
+/* Mobile Media Lab. - Start */ 
+/* Information about DivX */
+const PVMFStatus PVMFInfoDivXRemainingRentalCount = 54;
+const PVMFStatus PVMFInfoDivXUnsupportedAudio = 55;
+const PVMFStatus PVMFInfoLongLoadingTime = 56;
+/* Mobile Media Lab. - End */ 
 /*
  Placeholder for end of range
  */

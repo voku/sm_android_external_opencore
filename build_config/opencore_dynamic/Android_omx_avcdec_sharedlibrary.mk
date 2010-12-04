@@ -3,7 +3,7 @@ include $(CLEAR_VARS)
 
 LOCAL_WHOLE_STATIC_LIBRARIES := \
 	libomx_avc_component_lib \
- 	libpvavcdecoder
+	libmfcdecapi
 
 LOCAL_MODULE := libomx_avcdec_sharedlibrary
 
@@ -15,5 +15,5 @@ LOCAL_SHARED_LIBRARIES +=   libomx_sharedlibrary libopencore_common
 
 include $(BUILD_SHARED_LIBRARY)
 include   $(PV_TOP)/codecs_v2/omx/omx_h264/Android.mk
-include   $(PV_TOP)/codecs_v2/video/avc_h264/dec/Android.mk
+#include   $(PV_TOP)/codecs_v2/video/s3c_mfc/dec/Android.mk
 
