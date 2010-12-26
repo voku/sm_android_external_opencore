@@ -53,6 +53,7 @@
 // interprocess shared memory support
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
+#include <binder/MemoryHeapPmem.h>
 
 // color converter
 #include "cczoomrotation16.h"
@@ -68,6 +69,8 @@
         DISPLAY_WIDTH_VALID | VIDEO_HEIGHT_VALID | VIDEO_WIDTH_VALID)
 #define VIDEO_PARAMETERS_VALID (VIDEO_SUBFORMAT_VALID | DISPLAY_HEIGHT_VALID | \
         DISPLAY_WIDTH_VALID | VIDEO_HEIGHT_VALID | VIDEO_WIDTH_VALID)
+
+#define USE_PMEM_STREAM
 
 namespace android {
     class PVPlayer;
@@ -307,7 +310,10 @@ protected:
     // frame buffer support
     static const int kBufferCount = 2;
     int                         mFrameBufferIndex;
-    ISurface::BufferHeap        mBufferHeap;
+    sp<MemoryHeapBase>          mFrameHeap;
+#ifdef USE_PMEM_STREAM
+    sp<MemoryHeapPmem>          mPmemHeap;
+#endif
     size_t                      mFrameBuffers[kBufferCount];
 
     void convertFrame(void* src, void* dst, size_t len);

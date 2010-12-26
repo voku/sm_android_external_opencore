@@ -36,6 +36,7 @@ OSCL_DLL_ENTRY_POINT_DEFAULT()
 //The factory functions.
 #include "oscl_mem.h"
 
+//#define FORCE_TO_SW_REDERING
 using namespace android;
 
 OSCL_EXPORT_REF AndroidSurfaceOutput::AndroidSurfaceOutput() :
@@ -62,17 +63,21 @@ status_t AndroidSurfaceOutput::set(PVPlayer* pvPlayer, const sp<ISurface>& surfa
 status_t AndroidSurfaceOutput::setVideoSurface(const sp<ISurface>& surface)
 {
     LOGV("setVideoSurface(%p)", surface.get());
+/*
     // unregister buffers for the old surface
     if (mSurface != NULL) {
         LOGV("unregisterBuffers from old surface");
         mSurface->unregisterBuffers();
     }
+*/
     mSurface = surface;
+/*
     // register buffers for the new surface
     if ((mSurface != NULL) && (mBufferHeap.heap != NULL)) {
         LOGV("registerBuffers from old surface");
         mSurface->registerBuffers(mBufferHeap);
     }
+*/
     return NO_ERROR;
 }
 
@@ -330,7 +335,7 @@ PVMFCommandId AndroidSurfaceOutput::Start(const OsclAny* aContext)
 void AndroidSurfaceOutput::postLastFrame()
 {
     // ignore if no surface or heap
-    if ((mSurface == NULL) || (mBufferHeap.heap == NULL)) return;
+    if ((mSurface == NULL) || (mFrameHeap == NULL)) return;
     mSurface->postBuffer(mFrameBuffers[mFrameBufferIndex]);
 }
 
@@ -966,29 +971,62 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutput::initCheck()
     displayHeight = (displayHeight + 1) & -2;
     frameWidth = (frameWidth + 1) & -2;
     frameHeight = (frameHeight + 1) & -2;
-    frameSize = frameWidth * frameHeight * 2;
+#ifdef FORCE_TO_SW_REDERING
+    frameSize     = frameWidth * frameHeight * 2;
+#else
+    frameSize     = (frameWidth * frameHeight * 3) >> 1; // yj
+#endif // FORCE_TO_SW_REDERING
 
     // create frame buffer heap and register with surfaceflinger
-    sp<MemoryHeapBase> heap = new MemoryHeapBase(frameSize * kBufferCount);
-    if (heap->heapID() < 0) {
+#ifdef USE_PMEM_STREAM
+    mFrameHeap = new MemoryHeapBase("/dev/pmem_stream", frameSize * kBufferCount, 0);
+    LOGD(">>>>>>>>>>>>>>> creating frameHeap using pmem, size : %d.", frameSize * kBufferCount);
+#else /* USE_PMEM_STREAM */
+    mFrameHeap = new MemoryHeapBase(frameSize * kBufferCount);
+    LOGD(">>>>>>>>>>>>>>> creating frameHeap not using pmem, size : %d.", frameSize * kBufferCount);
+#endif /* USE_PMEM_STREAM */
+    if (mFrameHeap->heapID() < 0) {
         LOGE("Error creating frame buffer heap");
         return false;
     }
     
-    mBufferHeap = ISurface::BufferHeap(displayWidth, displayHeight,
-            frameWidth, frameHeight, PIXEL_FORMAT_RGB_565, heap);
-    mSurface->registerBuffers(mBufferHeap);
+#ifdef USE_PMEM_STREAM
+    mPmemHeap = new MemoryHeapPmem(mFrameHeap, 0);
+    if (mPmemHeap->heapID() < 0) {
+        LOGE("Error creating frame buffer heap");
+        mFrameHeap.clear();
+        mPmemHeap.clear();
+        return false;
+    }
+    mPmemHeap->slap();
+    LOGD(">>>>>>>>>>>>>>> displayWidth: %d, displayHeight: %d, frameWidth: %d, frameHeight: %d.",displayWidth, displayHeight, frameWidth, frameHeight);
+#ifdef FORCE_TO_SW_REDERING
+    ISurface::BufferHeap buffers(displayWidth, displayHeight, frameWidth, frameHeight, PIXEL_FORMAT_RGB_565, mPmemHeap);
+#else
+    ISurface::BufferHeap buffers(displayWidth, displayHeight, frameWidth, frameHeight, HAL_PIXEL_FORMAT_YCbCr_420_P, mPmemHeap);
+#endif // FORCE_TO_SW_REDERING
+
+#else /* USE_PMEM_STREAM */
+
+#ifdef FORCE_TO_SW_REDERING
+    ISurface::BufferHeap buffers(displayWidth, displayHeight, frameWidth, frameHeight, PIXEL_FORMAT_RGB_565, mFrameHeap);
+#else
+    ISurface::BufferHeap buffers(displayWidth, displayHeight, frameWidth, frameHeight, HAL_PIXEL_FORMAT_YCbCr_420_P, mFrameHeap);
+#endif // FORCE_TO_SW_REDERING
+#endif /* USE_PMEM_STREAM */
+    mSurface->registerBuffers(buffers);
 
     // create frame buffers
     for (int i = 0; i < kBufferCount; i++) {
         mFrameBuffers[i] = i * frameSize;
     }
-
+#ifdef FORCE_TO_SW_REDERING
     // initialize software color converter
     iColorConverter = ColorConvert16::NewL();
     iColorConverter->Init(displayWidth, displayHeight, frameWidth, displayWidth, displayHeight, displayWidth, CCROTATE_NONE);
     iColorConverter->SetMemHeight(frameHeight);
     iColorConverter->SetMode(1);
+#endif // FORCE_TO_SW_REDERING
 
     LOGV("video = %d x %d", displayWidth, displayHeight);
     LOGV("frame = %d x %d", frameWidth, frameHeight);
@@ -1004,12 +1042,17 @@ OSCL_EXPORT_REF bool AndroidSurfaceOutput::initCheck()
 
 OSCL_EXPORT_REF PVMFStatus AndroidSurfaceOutput::writeFrameBuf(uint8* aData, uint32 aDataLen, const PvmiMediaXferHeader& data_header_info)
 {
+    if (mSurface == 0) return PVMFFailure;
+
+#ifdef FORCE_TO_SW_REDERING
+    iColorConverter->Convert(aData, static_cast<uint8*>(mFrameHeap->base()) + mFrameBuffers[mFrameBufferIndex]);
+#else
+    memcpy(static_cast<uint8*>(mFrameHeap->base()) + mFrameBuffers[mFrameBufferIndex], aData, aDataLen);
+#endif // FORCE_TO_SW_REDERING
     // post to SurfaceFlinger
-    if ((mSurface != NULL) && (mBufferHeap.heap != NULL)) {
-        if (++mFrameBufferIndex == kBufferCount) mFrameBufferIndex = 0;
-        iColorConverter->Convert(aData, static_cast<uint8*>(mBufferHeap.heap->base()) + mFrameBuffers[mFrameBufferIndex]);
-        mSurface->postBuffer(mFrameBuffers[mFrameBufferIndex]);
-    }
+    mSurface->postBuffer(mFrameBuffers[mFrameBufferIndex]);
+    if (++mFrameBufferIndex == kBufferCount) mFrameBufferIndex = 0;
+
     return PVMFSuccess;
 }
 
@@ -1032,7 +1075,11 @@ OSCL_EXPORT_REF void AndroidSurfaceOutput::closeFrameBuf()
 
     // free heaps
     LOGV("free frame heap");
-    mBufferHeap.heap.clear();
+#ifdef USE_PMEM_STREAM
+    mPmemHeap->unslap();
+    mPmemHeap.clear();
+#endif /* USE_PMEM_STREAM */
+    mFrameHeap.clear();
 
     // free color converter
     if (iColorConverter != 0)
