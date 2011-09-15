@@ -102,4 +102,3 @@ AudioSampleEntry::~AudioSampleEntry()
         PV_MP4_FF_DELETE(NULL, ESDAtom, _pes);
     }
 }
-

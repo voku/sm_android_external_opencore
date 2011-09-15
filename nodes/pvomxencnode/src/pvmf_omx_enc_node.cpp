@@ -5175,6 +5175,7 @@ OMX_ERRORTYPE PVMFOMXEncNode::FillBufferDoneProcessing(OMX_OUT OMX_HANDLETYPE aC
     // address of the mempool buffer (so that it can be released)
     OsclAny *pContext = (OsclAny*) aBuffer->pAppPrivate;
 
+    uint32 nal_size= 0;
 
     // check for EOS flag
     if ((aBuffer->nFlags & OMX_BUFFERFLAG_EOS))
