@@ -36,7 +36,6 @@
 SampleEntry::SampleEntry(MP4_FF_FILE *fp, uint32 size, uint32 type)
         : Atom(fp, size, type)
 {
-    sampleEntrySize = 0;
     if (_success)
     {
 
@@ -52,8 +51,6 @@ SampleEntry::SampleEntry(MP4_FF_FILE *fp, uint32 size, uint32 type)
 
         if (!_success)
             _mp4ErrorCode = READ_SAMPLE_ENTRY_FAILED;
-        else
-            sampleEntrySize = 8;
     }
     else
     {
@@ -95,8 +92,4 @@ uint16 SampleEntry::getWidth() const
 uint16 SampleEntry::getHeight() const
 {
     return 0;
-}
-uint32 SampleEntry::getSampleEntrySize() const
-{
-    return sampleEntrySize;
 }

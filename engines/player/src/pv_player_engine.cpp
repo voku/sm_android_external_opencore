@@ -1918,7 +1918,7 @@ void PVPlayerEngine::NodeCommandCompleted(const PVMFCmdResp& aResponse)
     OSCL_ASSERT(nodecontext);
 
     // Ignore other node completion if cancelling
-    if (CheckForPendingErrorHandlingCmd() && aResponse.GetCmdStatus() == PVMFErrCancelled)
+    if (!iCmdToCancel.empty() || (CheckForPendingErrorHandlingCmd() && aResponse.GetCmdStatus() == PVMFErrCancelled))
     {
         PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_STACK_TRACE, (0, "PVPlayerEngine::NodeCommandCompleted() Node command completion ignored due to cancel process, id=%d", aResponse.GetCmdId()));
         // Remove the context from the list
@@ -3946,6 +3946,7 @@ PVMFStatus PVPlayerEngine::DoCancelPendingNodeDatapathCommand()
                 {
                     PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_ERR,
                                     (0, "PVPlayerEngine::DoCancelPendingNodeDatapathCommand() CancelAllCommands() on source node did a leave"));
+                    FreeEngineContext(iCurrentContextList[i]);
                 }
             }
             else if (iCurrentContextList[i]->iEngineDatapath != NULL)
@@ -3962,6 +3963,7 @@ PVMFStatus PVPlayerEngine::DoCancelPendingNodeDatapathCommand()
                     {
                         PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_ERR,
                                         (0, "PVPlayerEngine::DoCancelPendingNodeDatapathCommand() CancelAllCommands() on sink node did a leave"));
+                        FreeEngineContext(iCurrentContextList[i]);
                     }
                 }
                 else if (iCurrentContextList[i]->iNode == iCurrentContextList[i]->iEngineDatapath->iDecNode)
@@ -3976,6 +3978,7 @@ PVMFStatus PVPlayerEngine::DoCancelPendingNodeDatapathCommand()
                     {
                         PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_ERR,
                                         (0, "PVPlayerEngine::DoCancelPendingNodeDatapathCommand() CancelAllCommands() on dec node did a leave"));
+                        FreeEngineContext(iCurrentContextList[i]);
                     }
                 }
                 else
@@ -4019,6 +4022,7 @@ PVMFStatus PVPlayerEngine::DoCancelPendingNodeDatapathCommand()
             {
                 PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_ERR,
                                 (0, "PVPlayerEngine::DoCancelPendingNodeDatapathCommand() CancelAllCommands() on recognizer node did a leave"));
+                FreeEngineContext(iCurrentContextList[i]);
             }
         }
         else
@@ -4027,7 +4031,6 @@ PVMFStatus PVPlayerEngine::DoCancelPendingNodeDatapathCommand()
             PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_ERR, (0, "PVPlayerEngine::DoCancelPendingNodeDatapathCommand() No pending node or datapath. Asserting"));
             OSCL_ASSERT(false);
         }
-        FreeEngineContext(iCurrentContextList[i]);
     }
 
     if (iNumberCancelCmdPending == 0)

@@ -442,10 +442,6 @@ status_t PlayerDriver::enqueueCommand(PlayerCommand* command)
 
     // If we are in synchronous mode, wait for completion.
     if (syncsemcopy) {
-        if (code == PlayerCommand::PLAYER_CANCEL_ALL_COMMANDS)
-        {
-          RunIfNotReady();
-        }
         syncsemcopy->Wait();
         if (code == PlayerCommand::PLAYER_QUIT) {
             syncsemcopy->Close();
@@ -1155,7 +1151,7 @@ int PlayerDriver::playerThread()
 
     OMX_MasterDeinit();
     UninitializeForThread();
-    return error;
+    return 0;
 }
 
 /*static*/ void PlayerDriver::syncCompletion(status_t s, void *cookie, bool cancelled)
@@ -1469,9 +1465,8 @@ void PlayerDriver::HandleInformationalEvent(const PVAsyncInformationalEvent& aEv
             // there is any bug associated with it; Meanwhile, lets treat this as an error
             // since after playerdriver receives this event, playback session cannot be
             // recovered.
-            if(mDataSource->GetDataSourceFormatType() != PVMF_MIME_FORMAT_UNKNOWN)
-                mPvPlayer->sendEvent(MEDIA_ERROR, ::android::MEDIA_ERROR_UNKNOWN,
-                                     PVMFInfoContentTruncated);
+            mPvPlayer->sendEvent(MEDIA_ERROR, ::android::MEDIA_ERROR_UNKNOWN,
+                                 PVMFInfoContentTruncated);
             break;
 
         case PVMFInfoContentLength:
@@ -1770,11 +1765,7 @@ bool PVPlayer::isPlaying()
 
 status_t PVPlayer::getCurrentPosition(int *msec)
 {
-    status_t ret = mPlayerDriver->enqueueCommand(new PlayerGetPosition(msec,0,0));
-    if (mDuration > 0 && *msec > mDuration) {
-        *msec = mDuration;
-    }
-    return ret;
+    return mPlayerDriver->enqueueCommand(new PlayerGetPosition(msec,0,0));
 }
 
 status_t PVPlayer::getDuration(int *msec)

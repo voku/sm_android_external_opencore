@@ -46,10 +46,6 @@
 #include "oscl_defalloc.h"
 #endif
 
-#ifndef OSCL_MUTEX_H_INCLUDED
-#include "oscl_mutex.h"
-#endif
-
 /**
  * Interface class for OsclRefCounter implementations
  */
@@ -282,14 +278,13 @@ class OsclRefCounterMTDA : public OsclRefCounter
                 ptr(p), deallocator(dealloc), refcnt(1)
         {
             OSCL_ASSERT(ptr != NULL && deallocator != NULL);
-            lock.Create();
         }
 
         /**
          * Destructor
          * empty
          */
-        virtual ~OsclRefCounterMTDA() { lock.Close(); }
+        virtual ~OsclRefCounterMTDA() {}
 
         /**
          * Add to the reference count
@@ -306,12 +301,8 @@ class OsclRefCounterMTDA : public OsclRefCounter
          */
         void removeRef()
         {
-            int cnt;
             lock.Lock();
-            cnt = --refcnt;
-            lock.Unlock();
-
-            if (cnt == 0)
+            if (--refcnt == 0)
             {
                 if (ptr == this)
                 {
@@ -325,6 +316,10 @@ class OsclRefCounterMTDA : public OsclRefCounter
                     deallocator->destruct_and_dealloc(ptr);
                     delete(this);
                 }
+            }
+            else
+            {
+                lock.Unlock();
             }
         }
 

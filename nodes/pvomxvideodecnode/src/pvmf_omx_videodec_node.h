@@ -31,7 +31,7 @@
 #endif
 
 #define PVMFOMXVIDEODECNODE_NUM_CMD_IN_POOL 8
-#define PVOMXVIDEODECMAXNUMDPBFRAMESPLUS1 19
+#define PVOMXVIDEODECMAXNUMDPBFRAMESPLUS1 17
 
 #define PVOMX_VIDEO_DECODER_H264 "video_decoder.avc"
 #define PVOMX_VIDEO_DECODER_MPEG4 "video_decoder.mpeg4"
@@ -69,14 +69,11 @@ const PVOMXBaseDecNodeKeyStringData PVOMXVideoDecNodeConfigM4VKeys[PVOMXVIDEODEC
 };
 
 // Key string info at the render level ("x-pvmf/video/render")
-#define PVOMXVIDEODECNODECONFIG_RENDER_NUMKEYS 4
+#define PVOMXVIDEODECNODECONFIG_RENDER_NUMKEYS 2
 const PVOMXBaseDecNodeKeyStringData PVOMXVideoDecNodeConfigRenderKeys[PVOMXVIDEODECNODECONFIG_RENDER_NUMKEYS] =
 {
     {"width", PVMI_KVPTYPE_VALUE, PVMI_KVPVALTYPE_UINT32},
-    {"height", PVMI_KVPTYPE_VALUE, PVMI_KVPVALTYPE_UINT32},
-    {"display_width", PVMI_KVPTYPE_VALUE, PVMI_KVPVALTYPE_UINT32},
-    {"display_height", PVMI_KVPTYPE_VALUE, PVMI_KVPVALTYPE_UINT32},
-
+    {"height", PVMI_KVPTYPE_VALUE, PVMI_KVPVALTYPE_UINT32}
 };
 
 
@@ -207,8 +204,6 @@ class PVMFOMXVideoDecNode
 
         uint32 iNewWidth , iNewHeight;
 
-        PVMFStatus DoVerifyAndSetVidRenderParameter(PvmiKvp& aParameter, bool aSetParam);
-        bool iUpstreamParsing;
 };
 
 

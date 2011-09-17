@@ -3264,7 +3264,7 @@ PVMFStatus PVMFMP4FFParserNode::DoSetDataSourcePosition(PVMFMP4FFParserNodeComma
     {
         // Convert to milliseconds
         MediaClockConverter mcc(timescale);
-        mcc.set_clock(duration, 0);
+        mcc.update_clock(duration);
         durationms = mcc.get_converted_ts(1000);
     }
     if ((targetNPT >= durationms) && (PVMF_DATA_SOURCE_DIRECTION_REVERSE != iPlayBackDirection))
@@ -3701,7 +3701,7 @@ PVMFStatus PVMFMP4FFParserNode::DoQueryDataSourcePosition(PVMFMP4FFParserNodeCom
     {
         // Convert to milliseconds
         MediaClockConverter mcc(timescale);
-        mcc.set_clock(duration, 0);
+        mcc.update_clock(duration);
         durationms = mcc.get_converted_ts(1000);
     }
     if (targetNPT >= durationms)
@@ -4542,7 +4542,6 @@ bool PVMFMP4FFParserNode::RetrieveTrackData(PVMP4FFNodeTrackPortInfo& aTrackPort
 
     uint32 actualdatasize = 0;
     uint32 tsDelta = 0;
-    uint32 cttsOffset = 0;
     uint32 duration_text_msec = 0;
     bool oSetNoRenderBit = false;
     bool textOnlyClip = false;
@@ -4573,9 +4572,6 @@ bool PVMFMP4FFParserNode::RetrieveTrackData(PVMP4FFNodeTrackPortInfo& aTrackPort
         else
         {
             tsDelta += iGau.info[i].ts_delta;
-            //@FIXME" cttsOffset is being saved does not work if we read more than one video frame
-            //at a time
-            cttsOffset += iGau.info[i].ctts_offset;
 
             if (iGau.info[i].ts < aTrackPortInfo.iTargetNPTInMediaTimeScale)
             {
@@ -4882,7 +4878,7 @@ bool PVMFMP4FFParserNode::RetrieveTrackData(PVMP4FFNodeTrackPortInfo& aTrackPort
         media_data_impl->setMarkerInfo(markerInfo);
 
         // Retrieve timestamp and convert to milliseconds
-        aTrackPortInfo.iClockConverter->set_clock((aTrackPortInfo.iTimestamp + cttsOffset), 0);
+        aTrackPortInfo.iClockConverter->set_clock(aTrackPortInfo.iTimestamp, 0);
         uint32 timestamp = aTrackPortInfo.iClockConverter->get_converted_ts(1000);
 
         // Set the media data's timestamp
@@ -4909,14 +4905,7 @@ bool PVMFMP4FFParserNode::RetrieveTrackData(PVMP4FFNodeTrackPortInfo& aTrackPort
         }
         else
         {
-            // In cases where there are B or P frames in the stream, the
-            // timestamps are not in order. These duration values causes
-            // problems in media output node later on. We'll ignore the
-            // duration of these frames if the are not in order.
-            if(timestamp_next < timestamp)
-                aTrackPortInfo.iMediaData->setDuration(0);
-            else
-                aTrackPortInfo.iMediaData->setDuration(duration_msec);
+            aTrackPortInfo.iMediaData->setDuration(duration_msec);
         }
         // increment media data sequence number
         aTrackPortInfo.iSeqNum++;
@@ -4953,6 +4942,7 @@ bool PVMFMP4FFParserNode::RetrieveTrackData(PVMP4FFNodeTrackPortInfo& aTrackPort
 
             if (!autopaused)
             {
+                uint32 requestedTimestamp = aTrackPortInfo.iTimestamp;
                 // If Parser library reported Insufficient data after seek, the requested
                 // timestamp here should be TS of sample from new position, so peek the
                 // sample.
@@ -4966,13 +4956,9 @@ bool PVMFMP4FFParserNode::RetrieveTrackData(PVMP4FFNodeTrackPortInfo& aTrackPort
                             && (numSamples > 0))
                     {
                         aTrackPortInfo.iClockConverter->set_clock(info.ts, 0);
+                        requestedTimestamp = aTrackPortInfo.iClockConverter->get_converted_ts(1000);
                     }
                 }
-                else
-                {
-                    aTrackPortInfo.iClockConverter->set_clock(aTrackPortInfo.iTimestamp, 0);
-                }
-                uint32 requestedTimestamp = aTrackPortInfo.iClockConverter->get_converted_ts(1000);
 
                 if ((NULL != iDataStreamInterface) && (0 != iDataStreamInterface->QueryBufferingCapacity()))
                 {
@@ -8339,7 +8325,7 @@ PVMFStatus PVMFMP4FFParserNode::GetVideoFrameWidth(uint32 aId, int32& aWidth, in
                         }
 
                         aWidth = width;
-                        if (aDisplayWidth < display_width)
+                        if (aDisplayWidth == 0)
                         {
                             aDisplayWidth = display_width;
                         }
@@ -8349,6 +8335,7 @@ PVMFStatus PVMFMP4FFParserNode::GetVideoFrameWidth(uint32 aId, int32& aWidth, in
                 }
             }
         }
+
     }
     else if (oscl_strncmp(trackMIMEType.get_str(), PVMF_MIME_H264_VIDEO_MP4, oscl_strlen(PVMF_MIME_H264_VIDEO_MP4)) == 0)
     {
@@ -8496,7 +8483,7 @@ PVMFStatus PVMFMP4FFParserNode::GetVideoFrameHeight(uint32 aId, int32& aHeight, 
                             return PVMFFailure;
                         }
 
-                        if (aDisplayHeight < display_height)
+                        if (aDisplayHeight == 0)
                         {
                             aDisplayHeight = display_height;
                         }

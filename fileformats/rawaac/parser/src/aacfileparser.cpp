@@ -324,13 +324,15 @@ int32 AACBitstreamObject::isAACFile()
 
                 // default to not enough data
                 retVal = AACBitstreamObject::INSUFFICIENT_DATA;
-
-                // check for possible ADTS sync word
-                int32 index = find_adts_syncword(pBuffer);
-                if (index != -1)
+                if (aRemBytes >= MAX_ADTS_PACKET_LENGTH)
                 {
-                    // definitely ADTS
-                    retVal = AACBitstreamObject::EVERYTHING_OK;
+                    // check for possible ADTS sync word
+                    int32 index = find_adts_syncword(pBuffer);
+                    if (index != -1)
+                    {
+                        // definitely ADTS
+                        retVal = AACBitstreamObject::EVERYTHING_OK;
+                    }
                 }
 
                 if (AACBitstreamObject::INSUFFICIENT_DATA == retVal)
@@ -383,7 +385,7 @@ int32 AACBitstreamObject::find_adts_syncword(uint8 *pBuffer)
     uint32 buff_length;
 
 
-    buff_length = iActual_size;
+    buff_length = OSCL_MIN(MAX_ADTS_PACKET_LENGTH, iActual_size);
 
 
     for (i = 0; i < buff_length - 1; i++)
@@ -576,7 +578,7 @@ int32 AACBitstreamObject::getFileInfo(int32& fileSize, TAACFormat& format, uint8
                     numProgConfigElem = (pBuffer[16] & 0x1E) >> 1;
 
                     // get bitrate (max for variable rate bitstream)
-                    iBitrate = bitRate = ((pBuffer[13] & 0xF) << 15) |
+                    iBitrate = bitRate = ((pBuffer[13] & 0xF0) << 15) |
                                          (pBuffer[14] << 11) |
                                          (pBuffer[15] << 3)  |
                                          ((pBuffer[16] & 0xE0) >> 5);
@@ -929,7 +931,7 @@ int32 AACBitstreamObject::getFileInfo(int32& fileSize, TAACFormat& format, uint8
                     numProgConfigElem = (pBuffer[7] & 0x1E) >> 1;
 
                     // get bitrate (max for variable rate bitstream)
-                    iBitrate  = bitRate = ((pBuffer[4] & 0xF) << 15) |
+                    iBitrate  = bitRate = ((pBuffer[4] & 0xF0) << 15) |
                                           (pBuffer[5] << 11) |
                                           (pBuffer[6] << 3)  |
                                           ((pBuffer[7] & 0xE0) >> 5);

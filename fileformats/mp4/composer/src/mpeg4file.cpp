@@ -616,7 +616,6 @@ PVA_FF_Mpeg4File::addTrack(int32 mediaType,
         // just added (with a 1-based index NOT a zero-based index)
         TrackID = pmediatrack->getTrackID();
     }
-
     recomputeSize();
     return (TrackID);
 }

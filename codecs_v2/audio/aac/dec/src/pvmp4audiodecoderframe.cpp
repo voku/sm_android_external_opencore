@@ -779,9 +779,10 @@ OSCL_EXPORT_REF Int PVMP4AudioDecodeFrame(
      */
 
 #ifdef AAC_PLUS
-    if ((pVars->bno <= 1) && (!empty_frame))
+    if (pVars->bno <= 1)
     {
-        if(!sbrBitStream->NrElements)
+        if ((pVars->mc_info.ExtendedAudioObjectType == MP4AUDIO_AAC_LC) &&
+                (!sbrBitStream->NrElements))
         {
             PVMP4AudioDecoderDisableAacPlus(pExt, pMem);
         }

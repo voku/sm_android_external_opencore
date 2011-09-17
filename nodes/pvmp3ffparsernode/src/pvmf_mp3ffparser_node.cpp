@@ -2407,9 +2407,7 @@ PVMFStatus PVMFMP3FFParserNode::ParseFile()
 
     if (mp3Err == MP3_INSUFFICIENT_DATA)
     {
-        SetState(EPVMFNodeError);
-        ReportErrorEvent(PVMFErrCorrupt);
-        return PVMFErrCorrupt;
+        return PVMFPending;
     }
     else if (mp3Err == MP3_END_OF_FILE ||
              mp3Err != MP3_SUCCESS)

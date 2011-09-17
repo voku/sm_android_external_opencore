@@ -93,10 +93,6 @@
 #include "pvmf_audio_encnode_extension.h"
 #endif
 
-#ifndef PVMF_THREADSAFE_MEMPOOL_H_INCLUDED
-#include "threadsafe_mempool.h"
-#endif
-
 // DV: NOTE - this needs to be fixed
 //#ifndef __PVM4VENCODER_H
 //#include "pvm4vencoder.h"
@@ -1184,8 +1180,8 @@ class PVMFOMXEncNode
         // OUTPUT BUFFER RELATED MEMBERS
 
 
-        // Output buffer memory pool: use threadsafe implementation
-        ThreadSafeMemPoolFixedChunkAllocator *iOutBufMemoryPool;
+        // Output buffer memory pool
+        OsclMemPoolFixedChunkAllocator *iOutBufMemoryPool;
 
         // Memory pool for simple media data
         OsclMemPoolFixedChunkAllocator *iMediaDataMemPool;

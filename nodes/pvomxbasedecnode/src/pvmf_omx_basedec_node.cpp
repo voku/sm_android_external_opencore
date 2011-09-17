@@ -40,10 +40,6 @@
         param.nVersion.s.nStep = SPECSTEP;
 
 #define PVOMXBASEDEC_MEDIADATA_CHUNKSIZE 128
-
-// minimum buffer size required to decode LATM streaming packets
-#define LATM_MIN_BUFFER_LEN 1550
-
 #if 0
 #include <utils/Log.h>
 #undef LOG_TAG
@@ -1197,7 +1193,6 @@ PVMFStatus PVMFOMXBaseDecNode::HandleProcessingState()
                                     (0, "%s::HandleProcessingState() Decoder initialization failed", iName.Str()));
                     ReportErrorEvent(PVMFErrResourceConfiguration);
                     ChangeNodeState(EPVMFNodeError);
-                    status = PVMFPending;
                     break;
                 }
 
@@ -1619,10 +1614,9 @@ PVMFStatus PVMFOMXBaseDecNode::HandleProcessingState()
             {
                 // grab buffer header from the mempool if possible, and send to component
                 if (!SendOutputBufferToOMXComponent())
-                {
-                    status = PVMFPending;
+
                     break;
-                }
+
             }
 
 
@@ -1636,26 +1630,17 @@ PVMFStatus PVMFOMXBaseDecNode::HandleProcessingState()
                 PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_DEBUG,
                                 (0, "%s::HandleProcessingState() Sending previous - partially consumed input back to the OMX component", iName.Str()));
 
-                if ( OMX_ErrorNone != OMX_EmptyThisBuffer(iOMXDecoder, iInputBufferToResendToComponent) )
-                {
-                    status = PVMFPending;
-                    EmptyBufferDoneProcessing(iOMXDecoder, NULL, iInputBufferToResendToComponent);
-                    iInputBufferToResendToComponent = NULL; // do this only once
-                    return status;
-                }
+                OMX_EmptyThisBuffer(iOMXDecoder, iInputBufferToResendToComponent);
                 iInputBufferToResendToComponent = NULL; // do this only once
-                status = PVMFSuccess;
             }
             else if ((iNumOutstandingInputBuffers < iNumInputBuffers) && (iDataIn.GetRep() != NULL))
             {
                 // try to get an input buffer header
                 // and send the input data over to the component
-                if ( !SendInputBufferToOMXComponent() )
-                {
-                    status = PVMFPending;
-                }
+                SendInputBufferToOMXComponent();
             }
 
+            status = PVMFSuccess;
             break;
 
 
@@ -1707,12 +1692,6 @@ bool PVMFOMXBaseDecNode::SendOutputBufferToOMXComponent()
     OutputBufCtrlStruct *output_buf = NULL;
     int32 errcode = OsclErrNone;
     uint32 ii;
-    OMX_ERRORTYPE  err;
-    OMX_STATETYPE sState;
-
-    err = OMX_GetState(iOMXDecoder, &sState);
-    if ( (OMX_ErrorNone != err) || (sState == OMX_StateInvalid) )
-        return false;
 
     // try to get output buffer header
     OSCL_TRY(errcode, output_buf = (OutputBufCtrlStruct *) iOutBufMemoryPool->allocate(iOutputAllocSize));
@@ -1770,11 +1749,7 @@ bool PVMFOMXBaseDecNode::SendOutputBufferToOMXComponent()
 
     output_buf->pBufHdr->nFlags = 0; // zero out the flags
 
-    if ( OMX_ErrorNone != OMX_FillThisBuffer(iOMXDecoder, output_buf->pBufHdr) )
-    {
-        FillBufferDoneProcessing(iOMXDecoder, NULL, output_buf->pBufHdr);
-        return false;
-    }
+    OMX_FillThisBuffer(iOMXDecoder, output_buf->pBufHdr);
 
 
 
@@ -1882,11 +1857,7 @@ bool PVMFOMXBaseDecNode::SendEOSBufferToOMXComponent()
     input_buf->pBufHdr->nFlags |= OMX_BUFFERFLAG_EOS;
 
     // send buffer to component
-    if ( OMX_ErrorNone != OMX_EmptyThisBuffer(iOMXDecoder, input_buf->pBufHdr) )
-    {
-        EmptyBufferDoneProcessing(iOMXDecoder, NULL, input_buf->pBufHdr);
-        return false;
-    }
+    OMX_EmptyThisBuffer(iOMXDecoder, input_buf->pBufHdr);
 
     PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_STACK_TRACE,
                     (0, "%s::SendEOSBufferToOMXComponent() Out", iName.Str()));
@@ -1927,13 +1898,7 @@ OSCL_EXPORT_REF void PVMFOMXBaseDecNode::SendIncompleteBufferUnderConstruction()
         PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_STACK_TRACE,
                         (0, "%s::SendIncompleteBufferUnderConstruction()  - Sending Incomplete Buffer 0x%x to OMX Component MARKER field set to %x, TS=%d, Ticks=%L", iName.Str(), iInputBufferUnderConstruction->pBufHdr->pBuffer, iInputBufferUnderConstruction->pBufHdr->nFlags, iInTimestamp, iOMXTicksTimestamp));
 
-        if ( OMX_ErrorNone != OMX_EmptyThisBuffer(iOMXDecoder, iInputBufferUnderConstruction->pBufHdr) )
-        {
-            iObtainNewInputBuffer = false;
-            EmptyBufferDoneProcessing(iOMXDecoder, NULL, iInputBufferUnderConstruction->pBufHdr);
-            iInputBufferUnderConstruction = NULL;
-            return;
-        }
+        OMX_EmptyThisBuffer(iOMXDecoder, iInputBufferUnderConstruction->pBufHdr);
 
 
         iInputBufferUnderConstruction = NULL;
@@ -1944,15 +1909,10 @@ OSCL_EXPORT_REF void PVMFOMXBaseDecNode::SendIncompleteBufferUnderConstruction()
 
 OSCL_EXPORT_REF bool PVMFOMXBaseDecNode::SendInputBufferToOMXComponent()
 {
-    OMX_ERRORTYPE  err;
-    OMX_STATETYPE sState;
 
     PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_STACK_TRACE,
                     (0, "%s::SendInputBufferToOMXComponent() In", iName.Str()));
 
-    err = OMX_GetState(iOMXDecoder, &sState);
-    if ( (OMX_ErrorNone != err) || (sState == OMX_StateInvalid) )
-        return false;
 
     // first need to take care of  missing packets if node is assembling partial frames.
     // The action depends whether the component (I) can handle incomplete frames/NALs or (II) cannot handle incomplete frames/NALs
@@ -2487,7 +2447,7 @@ OSCL_EXPORT_REF bool PVMFOMXBaseDecNode::SendInputBufferToOMXComponent()
         // set buffer fields (this is the same regardless of whether the input is movable or not
         input_buf->pBufHdr->nOffset = 0;
 
-        iInputTimestampClock.set_clock(iInTimestamp,0); // this will also take into consideration the timestamp rollover
+        iInputTimestampClock.update_clock(iInTimestamp); // this will also take into consideration the timestamp rollover
 
         // convert TS in input timescale into OMX_TICKS
         iOMXTicksTimestamp = ConvertTimestampIntoOMXTicks(iInputTimestampClock);
@@ -2531,6 +2491,8 @@ OSCL_EXPORT_REF bool PVMFOMXBaseDecNode::SendInputBufferToOMXComponent()
 
         if (iSetMarkerBitForEveryFrag == true)
         {
+
+
             if (iIsNewDataFragment)
             {
                 if ((iDataIn->getNumFragments() > 1))
@@ -2570,9 +2532,7 @@ OSCL_EXPORT_REF bool PVMFOMXBaseDecNode::SendInputBufferToOMXComponent()
                     {
                         // NAL mode, (uses OMX_BUFFERFLAG_ENDOFFRAME flag to mark end of NAL instead of end of frame)
                         // once NAL is complete, make sure you send it and obtain new buffer
-                        if ((iCurrFragNum == iDataIn->getNumFragments()) ||
-                                (((PVMFOMXDecPort*)iInPort)->iFormat != PVMF_MIME_3640))
-                            input_buf->pBufHdr->nFlags |= OMX_BUFFERFLAG_ENDOFFRAME;
+                        input_buf->pBufHdr->nFlags |= OMX_BUFFERFLAG_ENDOFFRAME;
                         iObtainNewInputBuffer = true;
                     }
                     else if (iCurrentMsgMarkerBit & PVMF_MEDIA_DATA_MARKER_INFO_M_BIT)
@@ -2606,17 +2566,8 @@ OSCL_EXPORT_REF bool PVMFOMXBaseDecNode::SendInputBufferToOMXComponent()
                 // if all the fragments have been exhausted, and this is the last piece
                 // of the (possibly broken up) last fragment
 
-                if ((!iOMXComponentSupportsPartialFrames) &&
-                        (((PVMFOMXDecPort*)iInPort)->iFormat == PVMF_MIME_LATM) &&
-                        (input_buf->pBufHdr->nFilledLen < LATM_MIN_BUFFER_LEN))
-                {
-                    PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_STACK_TRACE,
-                        (0, "Buffering for LATM Streaming. nAllocLen=%d nFilledLen=%d",
-                            input_buf->pBufHdr->nAllocLen,
-                            input_buf->pBufHdr->nFilledLen));
-                }
                 // use the marker bit from the end of message
-                else if (iCurrentMsgMarkerBit)
+                if (iCurrentMsgMarkerBit)
                 {
                     PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_STACK_TRACE,
                                     (0, "%s::SendInputBufferToOMXComponent() - END OF MESSAGE - Buffer 0x%x MARKER bit set to 1, TS=%d, Ticks=%L", iName.Str(), input_buf->pBufHdr->pBuffer, iInTimestamp, iOMXTicksTimestamp));
@@ -2673,11 +2624,7 @@ OSCL_EXPORT_REF bool PVMFOMXBaseDecNode::SendInputBufferToOMXComponent()
                 PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_STACK_TRACE,
                                 (0, "%s::SendInputBufferToOMXComponent()  - Sending Buffer 0x%x to OMX Component MARKER field set to %x, TS=%d, Ticks=%L", iName.Str(), input_buf->pBufHdr->pBuffer, input_buf->pBufHdr->nFlags, iInTimestamp, iOMXTicksTimestamp));
 
-                if ( OMX_ErrorNone != OMX_EmptyThisBuffer(iOMXDecoder, input_buf->pBufHdr) )
-                {
-                    EmptyBufferDoneProcessing(iOMXDecoder, NULL, input_buf->pBufHdr);
-                    return false;
-                }
+                OMX_EmptyThisBuffer(iOMXDecoder, input_buf->pBufHdr);
                 iInputBufferUnderConstruction = NULL; // this buffer is gone to OMX component now
             }
         }
@@ -2936,11 +2883,8 @@ OSCL_EXPORT_REF bool PVMFOMXBaseDecNode::SendConfigBufferToOMXComponent(uint8 *i
     // set buffer flag indicating buffer contains codec config data
     input_buf->pBufHdr->nFlags |= OMX_BUFFERFLAG_CODECCONFIG;
 
-    if ( OMX_ErrorNone != OMX_EmptyThisBuffer(iOMXDecoder, input_buf->pBufHdr) )
-    {
-        EmptyBufferDoneProcessing(iOMXDecoder, NULL, input_buf->pBufHdr);
-        return false;
-    }
+    OMX_EmptyThisBuffer(iOMXDecoder, input_buf->pBufHdr);
+
     return true;
 
 }
@@ -4173,17 +4117,6 @@ void PVMFOMXBaseDecNode::DoPrepare(PVMFOMXBaseDecNodeCommand& aCmd)
                         }
                         else
 #endif
-
-#ifdef USE_HW_AAC_DEC
-                        if ((0 == oscl_strncmp(aInputParameters.cComponentName, "OMX.PV.aacdec", PV_OMX_MAX_COMPONENT_NAME_LENGTH))
-                             && (format == PVMF_MIME_ADIF))
-                        {
-                            PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_DEBUG, 
-                                            (0, "%s::DoPrepare(): SW Decoder (%s) does not support ADIF format, try another component", iName.Str(), aInputParameters.cComponentName));
-                            continue;
-                        }
-#endif
-
                             // try to create component
                             err = OMX_MasterGetHandle(&iOMXDecoder, (OMX_STRING) aInputParameters.cComponentName, (OMX_PTR) this, (OMX_CALLBACKTYPE *) & iCallbacks, bHWAccelerated);
                         // if successful, no need to continue
@@ -4371,10 +4304,9 @@ void PVMFOMXBaseDecNode::DoPrepare(PVMFOMXBaseDecNodeCommand& aCmd)
             }
 
             // ONLY FOR AVC FILE PLAYBACK WILL 1 FRAGMENT CONTAIN ONE FULL NAL
-            if ((format == PVMF_MIME_H264_VIDEO) || (format == PVMF_MIME_H264_VIDEO_MP4) || (format == PVMF_MIME_3640))
+            if ((format == PVMF_MIME_H264_VIDEO) || (format == PVMF_MIME_H264_VIDEO_MP4))
             {
-                // every memory fragment in case of AVC is a full NAL and
-                // in case of 3640, it is full frame.
+                // every memory fragment in case of AVC is a full NAL
                 iSetMarkerBitForEveryFrag = true;
             }
             else
@@ -5136,101 +5068,6 @@ void PVMFOMXBaseDecNode::DoReset(PVMFOMXBaseDecNodeCommand& aCmd)
                     return;
 
                 }
-                if ( sState == OMX_StateInvalid )
-                {
-                    //this command is asynchronous.  move the command from
-                    //the input command queue to the current command, where
-                    //it will remain until it is completed.
-                    if ( !iResetInProgress )
-                    {
-                        int32 err;
-                        OSCL_TRY(err, iCurrentCommand.StoreL(aCmd););
-                        if ( err != OsclErrNone )
-                        {
-                            CommandComplete(iInputCommands, aCmd, PVMFErrNoMemory);
-                            return;
-                        }
-                        iInputCommands.Erase(&aCmd);
-
-                        iResetInProgress = true;
-                    }
-
-                    // if buffers aren't all back (due to timing issues with different callback AOs
-                    // state change can be reported before all buffers are returned)
-                    if ( iNumOutstandingInputBuffers > 0 || iNumOutstandingOutputBuffers > 0 )
-                    {
-                        PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_STACK_TRACE,
-                                        (0, "%s::DoReset() Waiting for %d input and-or %d output buffers", iName.Str(), iNumOutstandingInputBuffers, iNumOutstandingOutputBuffers));
-
-                        return;
-                    }
-
-                    if ( !iResetMsgSent )
-                    {
-                        // We can come here only if all buffers are already back
-                        // Don't repeat any of this twice.
-                        /* Change state to OMX_StateLoaded form OMX_StateIdle. */
-                        iResetMsgSent = true;
-
-
-                        PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_STACK_TRACE,
-                                        (0, "%s::DoReset() freeing output buffers", iName.Str()));
-
-                        if ( false == iOutputBuffersFreed )
-                        {
-                            if ( !FreeBuffersFromComponent(iOutBufMemoryPool, // allocator
-                                                           iOutputAllocSize,  // size to allocate from pool (hdr only or hdr+ buffer)
-                                                           iNumOutputBuffers, // number of buffers
-                                                           iOutputPortIndex, // port idx
-                                                           false // this is not input
-                                                          ) )
-                            {
-                                PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_ERR,
-                                                (0, "%s::DoReset() Cannot free output buffers ", iName.Str()));
-
-                                if ( iResetInProgress )
-                                {
-                                    iResetInProgress = false;
-                                    if ( (iCurrentCommand.size() > 0) &&
-                                         (iCurrentCommand.front().iCmd == PVMFOMXBaseDecNodeCommand::PVOMXBASEDEC_NODE_CMD_RESET)
-                                       )
-                                    {
-                                        CommandComplete(iCurrentCommand, iCurrentCommand.front() , PVMFErrResource);
-                                    }
-                                }
-
-                            }
-                        }
-                        PVLOGGER_LOGMSG(PVLOGMSG_INST_LLDBG, iLogger, PVLOGMSG_STACK_TRACE,
-                                        (0, "%s::DoReset() freeing input buffers ", iName.Str()));
-                        if ( false == iInputBuffersFreed )
-                        {
-                            if ( !FreeBuffersFromComponent(iInBufMemoryPool, // allocator
-                                                           iInputAllocSize,   // size to allocate from pool (hdr only or hdr+ buffer)
-                                                           iNumInputBuffers, // number of buffers
-                                                           iInputPortIndex, // port idx
-                                                           true // this is input
-                                                          ) )
-                            {
-                                PVLOGGER_LOGMSG(PVLOGMSG_INST_HLDBG, iLogger, PVLOGMSG_ERR,
-                                                (0, "%s::DoReset() Cannot free input buffers ", iName.Str()));
-
-                                if ( iResetInProgress )
-                                {
-                                    iResetInProgress = false;
-                                    if ( (iCurrentCommand.size() > 0) &&
-                                         (iCurrentCommand.front().iCmd == PVMFOMXBaseDecNodeCommand::PVOMXBASEDEC_NODE_CMD_RESET)
-                                       )
-                                    {
-                                        CommandComplete(iCurrentCommand, iCurrentCommand.front(), PVMFErrResource);
-                                    }
-                                }
-
-
-                            }
-                        }
-                    } // end of if(iResetMsgSent)
-                }
                 else
                 {
                     //Error condition report
@@ -5474,15 +5311,10 @@ void PVMFOMXBaseDecNode::DoCancelAllCommands(PVMFOMXBaseDecNodeCommand& aCmd)
 
     //next cancel all queued commands
     {
-        uint32 activeCmds = 1;
         //start at element 1 since this cancel command is element 0.
-        while (iInputCommands.size() > activeCmds)
+        while (iInputCommands.size() > 1)
         {
-            //don't cancel cmds which are posted after cancelall cmd
-            if(aCmd.iId > iInputCommands[activeCmds].iId)
-                CommandComplete(iInputCommands, iInputCommands[activeCmds], PVMFErrCancelled);
-            else
-                ++activeCmds;
+            CommandComplete(iInputCommands, iInputCommands[1], PVMFErrCancelled);
         }
     }
 

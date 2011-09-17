@@ -1,6 +1,5 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 1998-2009 PacketVideo
- * Copyright (c) 2009, Code Aurora Forum. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,14 +94,8 @@ H263SampleEntry::H263SampleEntry(MP4_FF_FILE *fp, uint32 size, uint32 type)
         {
             uint32 atom_type = UNKNOWN_ATOM;
             uint32 atom_size = 0;
-            int32 filePointer;
-            // retry until you find H263_SPECIFIC_ATOM or EOF
-            int32 cnt = 0;
-            do
-            {
-                AtomUtils::getNextAtomType(fp, atom_size, atom_type);
-                filePointer = AtomUtils::getCurrentFilePosition(fp);
-            } while((atom_type != H263_SPECIFIC_ATOM) && (filePointer <= (fp->_fileSize - 8)));
+
+            AtomUtils::getNextAtomType(fp, atom_size, atom_type);
 
             if (atom_type != H263_SPECIFIC_ATOM)
             {

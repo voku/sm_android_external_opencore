@@ -349,7 +349,7 @@ int32 OsclNativeFile::Seek(TOsclFileOffset offset, Oscl_File::seek_type origin)
 #ifdef ENABLE_SHAREDFD_PLAYBACK
         if (iSharedFd >= 0)
         {
-            uint32 newpos = iSharedFilePosition;
+            int newpos = iSharedFilePosition;
             if (origin == Oscl_File::SEEKCUR) newpos = newpos + offset;
             else if (origin == Oscl_File::SEEKSET) newpos = offset;
             else if (origin == Oscl_File::SEEKEND) newpos = iSharedFileSize + offset;

@@ -191,11 +191,7 @@ private:
          
     // If sourcing from a file descriptor, this holds a dup of it to prevent         
     // it from going away while we pass around the sharedfd: URI.        
-    int mSharedFd;
-
-    // Deinterlacing Chroma values
-    void deinterlaceChroma();
-    bool aHwAccelerated;
+    int mSharedFd; 
 };
 
 }; // namespace android

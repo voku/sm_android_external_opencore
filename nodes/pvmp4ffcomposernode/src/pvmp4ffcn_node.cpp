@@ -2792,6 +2792,7 @@ PVMFStatus PVMp4FFComposerNode::AddMemFragToTrack(Oscl_Vector<OsclMemoryFragment
             aPort->SetLastTS(aTimestamp - 20);
         }
     }
+
     else if (aFormat == PVMF_MIME_MPEG4_AUDIO)
     {
         status = CheckMaxDuration(aTimestamp);

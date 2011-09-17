@@ -653,9 +653,8 @@ CompositionOffsetAtom::resetStateVariables(uint32 sampleNum)
 
     }
 
-    // Went past end of list - but sample number may not be invalid
-    // It is not mandatory that all samples should have CTTS entry.
-    return (EVERYTHING_FINE);
+    // Went past end of list - not a valid sample number
+    return PV_ERROR;
 }
 
 int32 CompositionOffsetAtom::resetPeekwithGet()
