@@ -319,6 +319,13 @@ PVMFCommandId AndroidSurfaceOutput::Start(const OsclAny* aContext)
         iState=STATE_STARTED;
         processWriteResponseQueue(0);
         status=PVMFSuccess;
+
+        // post last buffer to prevent stale data
+        // if not configured, PVMFMIOConfigurationComplete is not sent
+        // there should not be any media data.
+        if(iIsMIOConfigured) { 
+            postLastFrame();
+        }
         break;
 
     default:
@@ -409,7 +416,7 @@ PVMFCommandId AndroidSurfaceOutput::DiscardData(const OsclAny* aContext)
     //needed here.
 
     PVMFStatus status=PVMFSuccess;
-    processWriteResponseQueue(0);
+    processWriteResponseQueue(1);
 
     CommandResponse resp(status,cmdid,aContext);
     QueueCommandResponse(resp);
